@@ -21,7 +21,7 @@ public class Main {
 
             System.err.println("Program parsed successfully.");
 
-            MyVisitor eval = new MyVisitor();
+            DeclVisitor eval = new DeclVisitor();
             root.accept(eval, null);
         }
         catch(ParseException ex){

@@ -2,7 +2,7 @@ import syntaxtree.*;
 import visitor.*;
 
 
-class MyVisitor extends GJDepthFirst<String, Void>{
+class DeclVisitor extends GJDepthFirst<String, Void>{
     /**
      * f0 -> "class"
      * f1 -> Identifier()
@@ -46,7 +46,7 @@ class MyVisitor extends GJDepthFirst<String, Void>{
     @Override
     public String visit(ClassDeclaration n, Void argu) throws Exception {
         n.f0.accept(this, argu);
-        
+
         String classname = n.f1.accept(this, argu);
         System.out.println("Class: " + classname);
 
@@ -104,7 +104,7 @@ class MyVisitor extends GJDepthFirst<String, Void>{
         String var = n.f1.accept(this, argu);
         System.out.println(var + " " + type);
         super.visit(n, argu);
-        
+
         return _ret;
     }
 

@@ -1,4 +1,4 @@
 class SymbolTable {
     // Class
-    HashMap<String, ClassInfo> classes;
+    Map<String, ClassInfo> classes = new HashMap<String, ClassInfo>();
 }

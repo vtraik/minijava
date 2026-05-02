@@ -14,6 +14,7 @@ public class Main {
 
         FileInputStream fis = null;
         for(int i = 0; i < args.length; ++i){
+            SymbolTable st = new SymbolTable();
             try{
                 fis = new FileInputStream(args[0]);
                 MiniJavaParser parser = new MiniJavaParser(fis);
@@ -23,11 +24,11 @@ public class Main {
                 System.err.println("Program parsed successfully.");
 
                 // first pass: find declerations and populate symbol table
-                DeclVisitor decl = new DeclVisitor();
+                DeclVisitor decl = new DeclVisitor(st);
                 root.accept(decl, null);
 
                 // second pass: type check references
-                RefVisitor ref = new RefVisitor();
+                RefVisitor ref = new RefVisitor(st);
                 root.accept(ref, null);
             }
             catch(ParseException ex){

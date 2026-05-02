@@ -1,8 +1,32 @@
 import syntaxtree.*;
 import visitor.*;
 
+// TO-DO: OVerloading prob in methods in a class.
+class DeclVisitor extends GJDepthFirst<String, String>{
+    private SymbolTable symbt;
 
-class DeclVisitor extends GJDepthFirst<String, Void>{
+    DeclVisitor(SymbolTable s){
+        symbt = s;
+    }
+
+    /*
+       Either {
+       1.  Scope: class|method.
+           method != null : method scope.
+           method == null : class scope.
+
+       2.  type|id
+   */
+    private String getFirstEl(String scope){
+        int indx = scope.indexOf('|');
+        return scope.substring(0, indx);
+    }
+
+    private String getSecEl(String scope){
+        int indx = scope.indexOf('|');
+        return scope.substring(indx);
+    }
+
     /**
      * f0 -> "class"
      * f1 -> Identifier()
@@ -24,13 +48,21 @@ class DeclVisitor extends GJDepthFirst<String, Void>{
      * f17 -> "}"
      */
     @Override
-    public String visit(MainClass n, Void argu) throws Exception {
-        String classname = n.f1.accept(this, null);
-        System.out.println("Class: " + classname);
+    public String visit(MainClass n, String argu) throws Exception {
+        String className = n.f1.accept(this, null);
+        String param = n.f11.accept(this, null);
 
-        super.visit(n, argu);
+        ClassInfo mainClass = new ClassInfo("Object", className);
+        Symbol retId = new Symbol("main", "void");
+        MethodInfo mainMeth = new MethodInfo(retId);
+        Symbol paramType = new Symbol(param, "String[]");
+        mainMeth.addParam(paramType);
+        mainClass.addMethod(mainMeth);
 
-        System.out.println();
+        symbt.addClass(mainClass);
+
+        String scope = String.format("%s|main", className);
+        n.f14.accept(this, scope);
 
         return null;
     }
@@ -44,20 +76,16 @@ class DeclVisitor extends GJDepthFirst<String, Void>{
      * f5 -> "}"
      */
     @Override
-    public String visit(ClassDeclaration n, Void argu) throws Exception {
-        n.f0.accept(this, argu);
+    public String visit(ClassDeclaration n, String argu) throws Exception {
+        String className = n.f1.accept(this, null);
 
-        String classname = n.f1.accept(this, argu);
-        System.out.println("Class: " + classname);
+        ClassInfo classI = new ClassInfo(null, className);
 
-        n.f2.accept(this, argu);
-        System.out.println("Fields: ");
-        n.f3.accept(this, argu);
-        System.out.println("Methods: ");
-        n.f4.accept(this, argu);
-        n.f5.accept(this, argu);
+        symbt.addClass(classI);
 
-        System.out.println();
+        String scope = String.format("%s|null", className);
+        n.f3.accept(this, scope);
+        n.f4.accept(this, scope);
 
         return null;
     }
@@ -73,22 +101,16 @@ class DeclVisitor extends GJDepthFirst<String, Void>{
      * f7 -> "}"
      */
     @Override
-    public String visit(ClassExtendsDeclaration n, Void argu) throws Exception {
-        n.f0.accept(this, argu);
+    public String visit(ClassExtendsDeclaration n, String argu) throws Exception {
+        String className = n.f1.accept(this, null);
+        String superClassName = n.f3.accept(this, null);
+        ClassInfo classI = new ClassInfo(superClassName, className);
 
-        String classname = n.f1.accept(this, null);
-        System.out.println("Class: " + classname);
+        symbt.addClass(classI);
 
-        n.f2.accept(this, argu);
-        n.f3.accept(this, argu);
-        n.f4.accept(this, argu);
-        System.out.println("Fields: ");
-        n.f5.accept(this, argu);
-        System.out.println("Methods: ");
-        n.f6.accept(this, argu);
-        n.f7.accept(this, argu);
-
-        System.out.println();
+        String scope = String.format("%s|null", className);
+        n.f5.accept(this, scope);
+        n.f6.accept(this, scope);
 
         return null;
     }
@@ -98,14 +120,22 @@ class DeclVisitor extends GJDepthFirst<String, Void>{
     * f1 -> Identifier()
     * f2 -> ";"
     */
-   public String visit(VarDeclaration n, Void argu) throws Exception {
-        String _ret=null;
+   @Override
+   public String visit(VarDeclaration n, String argu) throws Exception {
+        String className = getFirstEl(argu);
+        String methName = getSecEl(argu);
+
         String type = n.f0.accept(this, argu);
         String var = n.f1.accept(this, argu);
-        System.out.println(var + " " + type);
-        super.visit(n, argu);
+        Symbol newVar = new Symbol(var, type);
 
-        return _ret;
+        if(methName == "null"){ // class scope => field
+            symbt.getClass(className).addField(newVar);
+        }else{                  // method scope => local var
+            symbt.getClass(className).getMethod(methName).addLocalVar(newVar);
+        }
+
+        return null;
     }
 
     /**
@@ -124,16 +154,33 @@ class DeclVisitor extends GJDepthFirst<String, Void>{
      * f12 -> "}"
      */
     @Override
-    public String visit(MethodDeclaration n, Void argu) throws Exception {
+    public String visit(MethodDeclaration n, String argu) throws Exception {
+        // type1|id1,type2|id2,...
         String argumentList = n.f4.present() ? n.f4.accept(this, null) : "";
 
-        String myType = n.f1.accept(this, null);
-        String myName = n.f2.accept(this, null);
+        String type = n.f1.accept(this, null);
+        String methName = n.f2.accept(this, null);
+        Symbol retId = new Symbol(methName, type);
+        MethInfo methI = new MethInfo(retId);
 
-        System.out.println("Method: " + myType + " " + myName + " (" + argumentList + ")");
-        System.out.println("Local vars:");
+        String className = getFirstEl(argu);
 
-        super.visit(n, argu);
+        String[] args = argumentList.split(",");
+        for(int i = 0; i < args.length; ++i){
+            String ptype = getFirstEl(args[i]);
+            String name = getSecEl(args[i]);
+            methName += "_" + ptype;
+            Symbol param = new Symbol(name, ptype);
+            methI.addParam(param);
+        }
+
+        // update methName of methI: id_type1_type2...
+        retId.setName(methName);
+        symbt.getClass(className).addMethod(methI);
+
+
+        String scope = String.format("%s|%s", className, methName);
+        n.f7.accept(this, scope);
         return null;
     }
 
@@ -142,8 +189,8 @@ class DeclVisitor extends GJDepthFirst<String, Void>{
      * f1 -> FormalParameterTail()
      */
     @Override
-    public String visit(FormalParameterList n, Void argu) throws Exception {
-        String ret = n.f0.accept(this, null);
+    public String visit(FormalParameterList n, String argu) throws Exception {
+        String ret = n.f0.accept(this, null); // type|id
 
         if (n.f1 != null) {
             ret += n.f1.accept(this, null);
@@ -156,8 +203,9 @@ class DeclVisitor extends GJDepthFirst<String, Void>{
      * f0 -> FormalParameter()
      * f1 -> FormalParameterTail()
      */
-    public String visit(FormalParameterTerm n, Void argu) throws Exception {
-        return n.f1.accept(this, argu);
+    @Override
+    public String visit(FormalParameterTerm n, String argu) throws Exception {
+        return n.f1.accept(this, null);
     }
 
     /**
@@ -165,10 +213,10 @@ class DeclVisitor extends GJDepthFirst<String, Void>{
      * f1 -> FormalParameter()
      */
     @Override
-    public String visit(FormalParameterTail n, Void argu) throws Exception {
+    public String visit(FormalParameterTail n, String argu) throws Exception {
         String ret = "";
         for ( Node node: n.f0.nodes) {
-            ret += ", " + node.accept(this, null);
+            ret += "," + node.accept(this, null);
         }
 
         return ret;
@@ -179,27 +227,29 @@ class DeclVisitor extends GJDepthFirst<String, Void>{
      * f1 -> Identifier()
      */
     @Override
-    public String visit(FormalParameter n, Void argu) throws Exception{
+    public String visit(FormalParameter n, String argu) throws Exception{
         String type = n.f0.accept(this, null);
         String name = n.f1.accept(this, null);
-        return type + " " + name;
+        return type + "|" + name;
     }
 
     @Override
-    public String visit(ArrayType n, Void argu) {
+    public String visit(ArrayType n, String argu) {
         return "int[]";
     }
 
-    public String visit(BooleanType n, Void argu) {
+    @Override
+    public String visit(BooleanType n, String argu) {
         return "boolean";
     }
 
-    public String visit(IntegerType n, Void argu) {
+    @Override
+    public String visit(IntegerType n, String argu) {
         return "int";
     }
 
     @Override
-    public String visit(Identifier n, Void argu) {
+    public String visit(Identifier n, String argu) {
         return n.f0.toString();
     }
 }

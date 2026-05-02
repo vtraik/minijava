@@ -1,24 +1,32 @@
 import java.util.Map;
 
 class MethodInfo {
-    private String retType;
-    private String name;
+    private Symbol retId; // return_type + identifier
     List<Symbol> params = new List<Symbol>();
-    Map<String, String> localVars = new HashMap<String, String>();
+    Map<String, Symbol> localVars = new HashMap<String, Symbol>();
 
-    public String getRetType(){
-        return retType;
+    MethodInfo(Symbol retId){
+        this.retId = retId;
     }
 
-    public String getName(){
-        return name;
+    public Symbol getRetId(){
+        return retId;
+    }
+
+    public Symbol getParam(String name){
+        int indx = params.IndexOf(name);
+        return indx != -1 ? params.get(indx) : null;
+    }
+
+    public Symbol getLocalVar(String name){
+        return localVars.containsKey(name) ? localVars.get(name) : null;
     }
 
     public List<Symbol> getParams(){
         return params;
     }
 
-    public Map<String, String> getLocalVars(){
+    public Map<String, Symbol> getLocalVars(){
         return localVars;
     }
 
@@ -28,7 +36,7 @@ class MethodInfo {
         params.add(param);
     }
 
-    public void addLocalVar(Symbol var){
+    public void addLocalVar(Symbol var) throws Exception {
         if(localVars.containsKey(var))
             throw new Exception(String.format("Duplicate local variable %s in function %s", var.getName(), name));
         localVars.put(var.getName(), var);

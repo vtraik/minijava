@@ -22,6 +22,15 @@ class ClassInfo {
         return methods.containsKey(name) ? methods.get(name) : null;
     }
 
+    public List<Symbol> findMethod(String name, int numParams){
+        for(Map.Entry<String, MethodInfo> meth : methods){
+            if(meth.getKey().startsWith(name) && meth.getNumParams() == numParams){
+                return meth.getParams();
+            }
+        }
+        return null;
+    }
+
     public Map<String, MethodInfo> getMethods(){
         return methods;
     }

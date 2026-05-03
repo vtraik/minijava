@@ -52,7 +52,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String className = n.f1.accept(this, null);
         String param = n.f11.accept(this, null);
 
-        ClassInfo mainClass = new ClassInfo("Object", className);
+        ClassInfo mainClass = new ClassInfo(null, className);
         Symbol retId = new Symbol("main", "void");
         MethodInfo mainMeth = new MethodInfo(retId);
         Symbol paramType = new Symbol(param, "String[]");
@@ -129,7 +129,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String var = n.f1.accept(this, argu);
         Symbol newVar = new Symbol(var, type);
 
-        if(methName == "null"){ // class scope => field
+        if(methName.equals("null")){ // class scope => field
             symbt.getClass(className).addField(newVar);
         }else{                  // method scope => local var
             symbt.getClass(className).getMethod(methName).addLocalVar(newVar);
@@ -165,6 +165,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         String className = getFirstEl(argu);
 
+
         String[] args = argumentList.split(",");
         for(int i = 0; i < args.length; ++i){
             String ptype = getFirstEl(args[i]);
@@ -176,8 +177,21 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         // update methName of methI: id_type1_type2...
         retId.setName(methName);
-        symbt.getClass(className).addMethod(methI);
 
+        // Check between classes (override violation: ret type diff)
+        ClassInfo superClass;
+        String currSuperName = className;
+        while((superClass = symbt.getSuper(currSuperName)) != null){
+            currSuperName = supperClass.getName();
+            methSuper = superClass.getMethod(methName);
+            if(methSuper == null) continue;
+            String retType = methSuper.getRetId().getType();
+            if(!retType.equals(type))
+                throw new Exception(String.format("Override return types don't match in class %s: (%s-%s)",
+                                                  className, type, retType));
+        }
+
+        symbt.getClass(className).addMethod(methI);
 
         String scope = String.format("%s|%s", className, methName);
         n.f7.accept(this, scope);

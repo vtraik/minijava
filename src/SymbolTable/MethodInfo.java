@@ -22,6 +22,10 @@ class MethodInfo {
         return localVars.containsKey(name) ? localVars.get(name) : null;
     }
 
+    public int getNumParams(){
+        return params.length;
+    }
+
     public List<Symbol> getParams(){
         return params;
     }

@@ -10,8 +10,6 @@ public class Main {
             System.exit(1);
         }
 
-
-
         FileInputStream fis = null;
         for(int i = 0; i < args.length; ++i){
             SymbolTable st = new SymbolTable();
@@ -30,6 +28,9 @@ public class Main {
                 // second pass: type check references
                 RefVisitor ref = new RefVisitor(st);
                 root.accept(ref, null);
+
+                // print offsets
+                st.printOffsets();
             }
             catch(ParseException ex){
                 System.out.println(ex.getMessage());

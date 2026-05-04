@@ -6,6 +6,7 @@ class Symbol {
     Symbol(String name, String type){
         this.name = name;
         this.type = type;
+        this.offset = -1;
     }
 
     public String getName(){

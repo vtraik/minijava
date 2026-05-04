@@ -32,6 +32,10 @@ class SymbolTable {
         return classes.get(className).getSuper().getFieldOffset();
     }
 
+    public getSuperMethOffs(String className){
+        return classes.get(className).getSuper().getMethOffset();
+    }
+
     public void printOffsets(){
         for(Map.entry<String, ClassInfo> ce : classes)
             ce.getValue().printOffsets();

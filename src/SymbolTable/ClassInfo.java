@@ -9,10 +9,11 @@ class ClassInfo {
     Map<String, List<MethodInfo>> methods = new LinkedHashMap<String, ArrayList<MethodInfo>>();
     Map<String, Symbol> fields = new LinkedHashMap<String, Symbol>();
 
-    ClassInfo(ClassInfo baseClass, String name, int currFieldOffs){
+    ClassInfo(ClassInfo baseClass, String name, int currFieldOffs, int currMethOffs){
         superClass = baseClass;
         this.name = name;
         this.currFieldOffs = currFieldOffs;
+        this.currMethOffs = currMethOffs;
     }
 
     public ClassInfo getSuper(){
@@ -55,10 +56,16 @@ class ClassInfo {
         return fields;
     }
 
-    public void addMethod(MethodInfo method) throws Exception {
+    public void addMethod(MethodInfo method, boolean isOverridden) throws Exception {
         String methName = method.getName();
         if(methodsSignatures.containsKey(method.getMangName()))
             throw new Exception(String.format("Method %s is already defined in this scope", methName));
+
+        if(!isOverridden){
+            method.setOffset(currFieldOffs);
+            currMethOffs += 8;
+        }
+
         methodsSignatures.put(method.getMangName(), method.getRetId().getType());
         methods.computeIfAbsent(methName, k -> new ArrayList<MethodInfo>()).add(method);
     }
@@ -87,8 +94,12 @@ class ClassInfo {
         for(Map.entry<String, Symbol> field : fields){
             System.out.println(name + "." + field.getKey() + " : " + field.getOffset());
         }
-        for(Map.entry<String, MethInfo> meth : methods){
-            System.out.println(name + "." + meth.getKey() + " : " + meth.getOffset());
+        for(Map.entry<String, List<MethInfo>> meth : methods){
+            for(Map.entry<String, MethInfo> meth2 : methods){
+                int offs = meth2.getOffset();
+                if(offs != -1)
+                    System.out.println(name + "." + meth.getKey() + " : " + offs);
+            }
         }
     }
 }

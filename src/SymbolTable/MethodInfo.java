@@ -3,17 +3,24 @@ import java.util.Map;
 class MethodInfo {
     private Symbol retId; // return_type + identifier
     private String mangName;
+    private boolean isOverridden;
     private int offset;
     List<Symbol> params = new ArrayList<Symbol>();
     Map<String, Symbol> localVars = new HashMap<String, Symbol>();
 
-    MethodInfo(Symbol retId, String mangName){
+    MethodInfo(Symbol retId, String mangName, boolean isOverridden){
         this.retId = retId;
         this.mangName = mangName;
+        this.isOverridden = isOverridden;
+        this.offset = -1;
     }
 
     public Symbol getRetId(){
         return retId;
+    }
+
+    public boolean getOverridden(){
+        return isOverridden;
     }
 
     public Symbol getParam(String name){

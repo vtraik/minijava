@@ -46,23 +46,6 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         subtype(type1, superType);
     }
 
-    private void checkOverride(MethodInfo methI, List<MethodInfo> methSuper) throws Exception {
-        List<Symbol> clParams = methi.getParams();
-        List<Symbol> superParams = methSuper.getParams();
-
-        if(clParams.size() != superParams.size()) return 0; // diff methods
-
-        for(int i = 0; i < clParams.size(); ++i){
-            if(!clParams.get(i).getType().equals(superParams.get(i).getType()))
-                return 0; // diff params
-        }
-
-        if(!methI.getRetId().getType().equals(methSuper.getRetId().getType()))
-            return 1; // throw exception: same param types, diff ret type
-
-        return 2; // stop loop: found overriden method
-    }
-
     private boolean checkTypes(List<Symbol> l1, List<Symbol> l2){
         for(int i = 0; i < l1.size(); ++i){
             String t1 = l1.get(i).getType();
@@ -93,20 +76,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         while((superClass = symbt.getSuper(currSuperName)) != null){
             currSuperName = supperClass.getName();
             for(int i = 0; i < meth.size(); ++i){
-                // check override
-                // if a method with the same param types exists in super class it will be exactly 1 instance
-                // (intra class instances are denied earlier)
-                // so if it exists its either a valid override or a type error
-                String superMethRetType = superClass.getMethodRetType(meth.get(i).getMangName());
-                String methRetType = meth.getRetId().getType();
-                // class: int_foo_int_boolean, super: boolean_foo_int_boolean
-                if(methRetType != null && !methRetType.equals(superMethRetType)){
-                        throw new Exception(String.format("Override return types don't match in class %s: (%s-%s)",
-                                                        className, type, retType));
-                }else if(methRetType != null){ // overriden method, skip overload check for this method.
-                    continue;
-                }
-
+                if(meth.get(i).getOverridden()) continue; // dont check overridden methods
                 // check overload
                 List<MethodInfo> m1 = meth;
                 List<MethodInfo> m2 = superClass.getMethod();
@@ -219,7 +189,8 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String className = n.f1.accept(this, null);
         String superClassName = n.f3.accept(this, null);
         int currFieldOffs = symbt.getSuperFieldOffs(className);
-        ClassInfo classI = new ClassInfo(superClassName, className, currFieldOffs);
+        int currMethOffs = symbt.getSuperMethOffs(className);
+        ClassInfo classI = new ClassInfo(superClassName, className, currFieldOffs, currMethOffs);
 
         symbt.addClass(classI);
 
@@ -290,8 +261,29 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         }
 
         Symbol retId = new Symbol(methName, type);
-        MethInfo methI = new MethInfo(retId, mangName);
-        symbt.getClass(className).addMethod(methI);
+
+        ClassInfo superClass;
+        String currSuperName = className;
+        bool isOverridden = false;
+        while((superClass = symbt.getSuper(currSuperName)) != null){
+            // check override
+            // if a method with the same param types exists in super class it will be exactly 1 instance
+            // (intra class instances are denied earlier)
+            // so if it exists its either a valid override or a type error
+            String superMethRetType = superClass.getMethodRetType(meth.get(i).getMangName());
+            String methRetType = meth.getRetId().getType();
+            // class: int_foo_int_boolean, super: boolean_foo_int_boolean
+            if(methRetType != null && !methRetType.equals(superMethRetType)){
+                    throw new Exception(String.format("Override return types don't match in class %s: (%s-%s)",
+                                                    className, type, retType));
+            }else if(methRetType != null){ // overriden method, skip overload check for this method.
+                isOverridden = true;
+                break;
+            }
+        }
+
+        MethInfo methI = new MethInfo(retId, mangName, isOverridden);
+        symbt.getClass(className).addMethod(methI, isOverriden);
 
         String scope = String.format("%s|%s", className, methName);
         n.f7.accept(this, scope);

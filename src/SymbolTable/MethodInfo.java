@@ -2,11 +2,14 @@ import java.util.Map;
 
 class MethodInfo {
     private Symbol retId; // return_type + identifier
-    List<Symbol> params = new List<Symbol>();
+    private String mangName;
+    private int offset;
+    List<Symbol> params = new ArrayList<Symbol>();
     Map<String, Symbol> localVars = new HashMap<String, Symbol>();
 
-    MethodInfo(Symbol retId){
+    MethodInfo(Symbol retId, String mangName){
         this.retId = retId;
+        this.mangName = mangName;
     }
 
     public Symbol getRetId(){
@@ -32,6 +35,18 @@ class MethodInfo {
 
     public Map<String, Symbol> getLocalVars(){
         return localVars;
+    }
+
+    public int getOffset(){
+        return offset;
+    }
+
+    public String getMangName(){
+        return mangName;
+    }
+
+    public void setOffset(int offset){
+        this.offset = offset;
     }
 
     public void addParam(Symbol param) throws Exception {

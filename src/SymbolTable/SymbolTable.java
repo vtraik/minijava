@@ -1,10 +1,14 @@
-// TO-DO: offset calc
+// TO-DO: offset calc: override -> doesnt change state, overload: it does
 class SymbolTable {
-    // keep the order of insertion
+    // keep the order of insertion to print offsets in order.
     Map<String, ClassInfo> classes = new LinkedHashMap<String, ClassInfo>();
 
     public ClassInfo getClass(String name){
         return classes.containsKey(name) ? classes.get(name) : null;
+    }
+
+    public Map<String, ClassInfo> getClasses(){
+        return classes;
     }
 
     public ClassInfo getSuper(String name){
@@ -22,5 +26,14 @@ class SymbolTable {
         }
 
         classes.put(class_obj);
+    }
+
+    public getSuperFieldOffs(String className){
+        return classes.get(className).getSuper().getFieldOffset();
+    }
+
+    public void printOffsets(){
+        for(Map.entry<String, ClassInfo> ce : classes)
+            ce.getValue().printOffsets();
     }
 }

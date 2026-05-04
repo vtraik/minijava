@@ -27,6 +27,120 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return scope.substring(indx);
     }
 
+    private boolean subtype(String type1, String type2){
+        if(type2.equals("null")) return false;
+        if(type1.equals("int")){
+            if(type2.equals("int")) return true;
+            else return false;
+        }
+        if(type1.equals("boolean")){
+            if(type2.equals("boolean")) return true;
+            else return false;
+        }
+        if(type1.equals("int[]")){
+            if(type2.equals("int[]")) return true;
+            else return false;
+        }
+        if(type1.equals(type2)) return true;
+        String superType = symbt.getClass(type1).getSuperName();
+        subtype(type1, superType);
+    }
+
+    private void checkOverride(MethodInfo methI, List<MethodInfo> methSuper) throws Exception {
+        List<Symbol> clParams = methi.getParams();
+        List<Symbol> superParams = methSuper.getParams();
+
+        if(clParams.size() != superParams.size()) return 0; // diff methods
+
+        for(int i = 0; i < clParams.size(); ++i){
+            if(!clParams.get(i).getType().equals(superParams.get(i).getType()))
+                return 0; // diff params
+        }
+
+        if(!methI.getRetId().getType().equals(methSuper.getRetId().getType()))
+            return 1; // throw exception: same param types, diff ret type
+
+        return 2; // stop loop: found overriden method
+    }
+
+    private boolean checkTypes(List<Symbol> l1, List<Symbol> l2){
+        for(int i = 0; i < l1.size(); ++i){
+            String t1 = l1.get(i).getType();
+            String t1 = l2.get(i).getType();
+            if(!(subtype(t1, t2) || subtype(t2, t1)))
+                return true; // valid overload
+        }
+        return false;
+    }
+
+    private void checkOverloading(List<MethodInfo> methods) throws Exception {
+        // for all pairs with id := name
+        for(int i = 0; i < methods.size(); ++i){
+            for(int j = i+1; j < methods.size(); ++j){
+                MethodInfo m1 = methods.get(i);
+                MethodInfo m2 = methods.get(j);
+                if(m1.getNumParams() != m2.getNumParams) continue;
+
+                if(!checkTypes(m1.getParams(), m2.getParams()))
+                    throw new Exception(String.format("Invalid overload between %s and %s", m1.getName(), m2.getName()));
+            }
+        }
+    }
+
+    private void checkViolationsSuperClass(List<MethodInfo> meth, String className){
+        ClassInfo superClass;
+        String currSuperName = className;
+        while((superClass = symbt.getSuper(currSuperName)) != null){
+            currSuperName = supperClass.getName();
+            for(int i = 0; i < meth.size(); ++i){
+                // check override
+                // if a method with the same param types exists in super class it will be exactly 1 instance
+                // (intra class instances are denied earlier)
+                // so if it exists its either a valid override or a type error
+                String superMethRetType = superClass.getMethodRetType(meth.get(i).getMangName());
+                String methRetType = meth.getRetId().getType();
+                // class: int_foo_int_boolean, super: boolean_foo_int_boolean
+                if(methRetType != null && !methRetType.equals(superMethRetType)){
+                        throw new Exception(String.format("Override return types don't match in class %s: (%s-%s)",
+                                                        className, type, retType));
+                }else if(methRetType != null){ // overriden method, skip overload check for this method.
+                    continue;
+                }
+
+                // check overload
+                List<MethodInfo> m1 = meth;
+                List<MethodInfo> m2 = superClass.getMethod();
+                for(int j = 0; j < m2.size(); ++j){
+                    if(m1.get(i).getNumParams() != m2.get(j).getNumParams()) continue;
+                    if(!checkTypes(m1.get(i).getParams(), m2.get(j).getParams()))
+                        throw new Exception(String.format("Invalid overload between %s and %s",
+                                                        m1.get(i).getName(), m2.get(j).getName()));
+                }
+            }
+        }
+    }
+
+    private void checkMethodViolations(){
+        // traverse symbol table:
+        // - check override errors (intra class, iner class covered by addMethod)
+        // - check overloading errors
+        // - calc method offsets
+
+        Map<String, ClassInfo> classes = symbt.getClasses();
+        for(Map.entry<String, ClassInfo> cl : classes){
+            Map<String, List<MethodInfo>> methods = cl.getMethods();
+            for(Map.entry<String, List<MethodInfo>> meth : methods){
+                List<MethodInfo> sameClass = meth.getValue(); // same class methods with id := name
+                // same class overloading
+                checkOverloading(sameClass);
+
+                // super class overloading/overriding
+                checkViolationsSuperClass(meth, cl.getKey());
+            }
+        }
+
+    }
+
     /**
      * f0 -> "class"
      * f1 -> Identifier()
@@ -52,7 +166,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String className = n.f1.accept(this, null);
         String param = n.f11.accept(this, null);
 
-        ClassInfo mainClass = new ClassInfo(null, className);
+        ClassInfo mainClass = new ClassInfo(null, className, 0);
         Symbol retId = new Symbol("main", "void");
         MethodInfo mainMeth = new MethodInfo(retId);
         Symbol paramType = new Symbol(param, "String[]");
@@ -63,7 +177,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         String scope = String.format("%s|main", className);
         n.f14.accept(this, scope);
-
+        checkMethodViolations();
         return null;
     }
 
@@ -79,7 +193,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     public String visit(ClassDeclaration n, String argu) throws Exception {
         String className = n.f1.accept(this, null);
 
-        ClassInfo classI = new ClassInfo(null, className);
+        ClassInfo classI = new ClassInfo(null, className, 0);
 
         symbt.addClass(classI);
 
@@ -104,7 +218,8 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     public String visit(ClassExtendsDeclaration n, String argu) throws Exception {
         String className = n.f1.accept(this, null);
         String superClassName = n.f3.accept(this, null);
-        ClassInfo classI = new ClassInfo(superClassName, className);
+        int currFieldOffs = symbt.getSuperFieldOffs(className);
+        ClassInfo classI = new ClassInfo(superClassName, className, currFieldOffs);
 
         symbt.addClass(classI);
 
@@ -160,8 +275,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         String type = n.f1.accept(this, null);
         String methName = n.f2.accept(this, null);
-        Symbol retId = new Symbol(methName, type);
-        MethInfo methI = new MethInfo(retId);
+        String mangName = new String(methName);
 
         String className = getFirstEl(argu);
 
@@ -170,27 +284,13 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         for(int i = 0; i < args.length; ++i){
             String ptype = getFirstEl(args[i]);
             String name = getSecEl(args[i]);
-            methName += "_" + ptype;
+            mangName += "_" + ptype;
             Symbol param = new Symbol(name, ptype);
             methI.addParam(param);
         }
 
-        // update methName of methI: id_type1_type2...
-        retId.setName(methName);
-
-        // Check between classes (override violation: ret type diff)
-        ClassInfo superClass;
-        String currSuperName = className;
-        while((superClass = symbt.getSuper(currSuperName)) != null){
-            currSuperName = supperClass.getName();
-            methSuper = superClass.getMethod(methName);
-            if(methSuper == null) continue;
-            String retType = methSuper.getRetId().getType();
-            if(!retType.equals(type))
-                throw new Exception(String.format("Override return types don't match in class %s: (%s-%s)",
-                                                  className, type, retType));
-        }
-
+        Symbol retId = new Symbol(methName, type);
+        MethInfo methI = new MethInfo(retId, mangName);
         symbt.getClass(className).addMethod(methI);
 
         String scope = String.format("%s|%s", className, methName);

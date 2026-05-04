@@ -1,6 +1,7 @@
 class Symbol {
     private String name;
     private String type;
+    private int offset;
 
     Symbol(String name, String type){
         this.name = name;
@@ -15,12 +16,20 @@ class Symbol {
         return type;
     }
 
+    public int getOffset(){
+        return offset;
+    }
+
     public void setName(String name){
         this.name = name;
     }
 
     public void setType(String type){
         this.type = type;
+    }
+
+    public void setOffset(int offset){
+        this.offset = offset;
     }
 
     @Override

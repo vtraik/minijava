@@ -191,9 +191,9 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     public String visit(ClassExtendsDeclaration n, String argu) throws Exception {
         String className = n.f1.accept(this, null);
         String superClassName = n.f3.accept(this, null);
-        int currFieldOffs = symbt.getSuper(className).getFieldOffset();
-        int currMethOffs = symbt.getSuper(className).getMethOffset();
         ClassInfo superClass = symbt.getClass(superClassName); // either: superclass | null
+        int currFieldOffs = superClass.getFieldOffset();
+        int currMethOffs = superClass.getMethOffset();
         ClassInfo classI = new ClassInfo(superClass, className, currFieldOffs, currMethOffs);
 
         symbt.addClass(classI);
@@ -270,12 +270,13 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String currSuperName = className;
         boolean isOverridden = false;
         while((superClass = symbt.getSuper(currSuperName)) != null){
+            currSuperName = superClass.getName();
             // check override
             // if a method with the same param types exists in super class it will be exactly 1 instance
             // (intra class instances are denied earlier)
             // so if it exists its either a valid override or a type error
             String superMethRetType = superClass.getMethodRetType(methI.getMangName());
-            String methRetType = methI.getRetId().getName();
+            String methRetType = methI.getRetId().getType();
             // class: int_foo_int_boolean, super: boolean_foo_int_boolean
             if(superMethRetType != null && !methRetType.equals(superMethRetType)){
                     throw new Exception(String.format("Override return types don't match in class %s: (%s-%s)",

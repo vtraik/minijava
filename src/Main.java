@@ -4,7 +4,7 @@ import java.io.IOException;
 import syntaxtree.*;
 import visitor.*;
 import lexer_parser.*;
-import src.symboltable.*;
+import symboltable.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {

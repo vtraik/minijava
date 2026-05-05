@@ -23,10 +23,6 @@ public class ClassInfo {
         return superClass;
     }
 
-    public String getSuperName(){
-        return superClass.getName();
-    }
-
     public String getName(){
         return name;
     }
@@ -71,7 +67,7 @@ public class ClassInfo {
 
         boolean isOverridden = method.getOverridden();
         if(!isOverridden){
-            method.setOffset(currFieldOffs);
+            method.setOffset(currMethOffs);
             currMethOffs += 8;
         }
 

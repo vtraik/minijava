@@ -32,11 +32,6 @@ public class MethodInfo {
         return isOverridden;
     }
 
-    // public Symbol getParam(String name){
-    //     int indx = params.indexOf(name);
-    //     return indx != -1 ? params.get(indx) : null;
-    // }
-
     public Symbol getLocalVar(String name){
         return localVars.containsKey(name) ? localVars.get(name) : null;
     }

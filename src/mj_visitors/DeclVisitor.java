@@ -25,10 +25,10 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
     private String getSecEl(String scope){
         int indx = scope.indexOf('|');
-        return scope.substring(indx);
+        return scope.substring(indx+1);
     }
 
-    private boolean subtype(String type1, String type2){ // should fix error: doesnt return in all cases
+    private boolean subtype(String type1, String type2){
         if(type2.equals("null")) return false;
         if(type1.equals("int")){
             if(type2.equals("int")) return true;
@@ -43,7 +43,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
             else return false;
         }
         if(type1.equals(type2)) return true;
-        String superType = symbt.getClass(type1).getSuperName();
+        String superType = symbt.getClass(type1).getSuper().getName();
         return subtype(type1, superType);
     }
 
@@ -148,7 +148,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         symbt.addClass(mainClass);
 
-        String scope = String.format("%s|main_String[]", className); // ??
+        String scope = String.format("%s|main_String[]", className);
         n.f14.accept(this, scope);
         checkMethodViolations();
         return null;
@@ -191,8 +191,8 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     public String visit(ClassExtendsDeclaration n, String argu) throws Exception {
         String className = n.f1.accept(this, null);
         String superClassName = n.f3.accept(this, null);
-        int currFieldOffs = symbt.getSuperFieldOffs(className);
-        int currMethOffs = symbt.getSuperMethOffs(className);
+        int currFieldOffs = symbt.getSuper(className).getFieldOffset();
+        int currMethOffs = symbt.getSuper(className).getMethOffset();
         ClassInfo superClass = symbt.getClass(superClassName); // either: superclass | null
         ClassInfo classI = new ClassInfo(superClass, className, currFieldOffs, currMethOffs);
 
@@ -246,7 +246,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     @Override
     public String visit(MethodDeclaration n, String argu) throws Exception {
         // type1|id1,type2|id2,...
-        String argumentList = n.f4.present() ? n.f4.accept(this, null) : "";
+        String[] args = n.f4.present() ? n.f4.accept(this, null).split(",") : new String[0];
 
         String type = n.f1.accept(this, null);
         String methName = n.f2.accept(this, null);
@@ -256,8 +256,6 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         String className = getFirstEl(argu);
 
-
-        String[] args = argumentList.split(",");
         for(int i = 0; i < args.length; ++i){
             String ptype = getFirstEl(args[i]);
             String name = getSecEl(args[i]);
@@ -277,12 +275,12 @@ class DeclVisitor extends GJDepthFirst<String, String>{
             // (intra class instances are denied earlier)
             // so if it exists its either a valid override or a type error
             String superMethRetType = superClass.getMethodRetType(methI.getMangName());
-            String methRetType = methI.getRetId().getType();
+            String methRetType = methI.getRetId().getName();
             // class: int_foo_int_boolean, super: boolean_foo_int_boolean
-            if(methRetType != null && !methRetType.equals(superMethRetType)){
+            if(superMethRetType != null && !methRetType.equals(superMethRetType)){
                     throw new Exception(String.format("Override return types don't match in class %s: (%s-%s)",
                                                     className, methRetType, superMethRetType));
-            }else if(methRetType != null){ // overriden method, skip overload check for this method.
+            }else if(superMethRetType != null){ // overriden method, skip overload check for this method.
                 isOverridden = true;
                 break;
             }
@@ -291,7 +289,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         methI.setOverridden(isOverridden);
         symbt.getClass(className).addMethod(methI);
 
-        String scope = String.format("%s|%s", className, mangName); // ??
+        String scope = String.format("%s|%s", className, mangName);
         n.f7.accept(this, scope);
         return null;
     }

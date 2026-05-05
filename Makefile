@@ -1,4 +1,4 @@
-GEN_DIR := generated
+GEN_DIR := lexer_parser
 BIN := bin
 GRAMMAR := grammar
 
@@ -9,7 +9,8 @@ compile: $(GEN_DIR) $(BIN)
 	mv $(GRAMMAR)/minijava-jtb.jj $(GEN_DIR)/
 	java -jar javacc5.jar -OUTPUT_DIRECTORY=$(GEN_DIR) $(GEN_DIR)/minijava-jtb.jj
 	javac -d $(BIN) \
-		src/*.java \
+		src/mj_visitors/*.java \
+		src/symboltable/*.java \
 		$(GEN_DIR)/*.java \
 		visitor/*.java \
 		syntaxtree/*.java

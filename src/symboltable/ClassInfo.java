@@ -1,15 +1,18 @@
-class ClassInfo {
+package symboltable;
+import java.util.*;
+
+public class ClassInfo {
     private ClassInfo superClass;
     private String name;
     private int currFieldOffs;
     private int currMethOffs;
     // foo_int_boolean, retType
-    Map<String, String> methodsSignatures = new LinkedHashMap<String, String>();
+    Map<String, MethodInfo> methodsSignatures = new LinkedHashMap<String, MethodInfo>();
     // foo, MethodInfo
-    Map<String, List<MethodInfo>> methods = new LinkedHashMap<String, ArrayList<MethodInfo>>();
+    Map<String, List<MethodInfo>> methods = new LinkedHashMap<>();
     Map<String, Symbol> fields = new LinkedHashMap<String, Symbol>();
 
-    ClassInfo(ClassInfo baseClass, String name, int currFieldOffs, int currMethOffs){
+    public ClassInfo(ClassInfo baseClass, String name, int currFieldOffs, int currMethOffs){
         superClass = baseClass;
         this.name = name;
         this.currFieldOffs = currFieldOffs;
@@ -20,7 +23,7 @@ class ClassInfo {
         return superClass;
     }
 
-    public ClassInfo getSuperName(){
+    public String getSuperName(){
         return superClass.getName();
     }
 
@@ -40,11 +43,16 @@ class ClassInfo {
         return methods.containsKey(name) ? methods.get(name) : null;
     }
 
-    public String getMethodRetType(String name){
-        return methodsSignatures.containsKey(name) ? methodsSignatures.get(name) : null;
+    public MethodInfo getMethodMang(String mangName){
+        return methodsSignatures.containsKey(mangName) ? methodsSignatures.get(mangName) : null;
     }
 
-    public Map<String, MethodInfo> getMethods(){
+    public String getMethodRetType(String mangName){
+        return methodsSignatures.containsKey(mangName) ?
+               methodsSignatures.get(mangName).getRetId().getType() : null;
+    }
+
+    public Map<String, List<MethodInfo>> getMethods(){
         return methods;
     }
 
@@ -56,17 +64,18 @@ class ClassInfo {
         return fields;
     }
 
-    public void addMethod(MethodInfo method, boolean isOverridden) throws Exception {
-        String methName = method.getName();
+    public void addMethod(MethodInfo method) throws Exception {
+        String methName = method.getRetId().getName();
         if(methodsSignatures.containsKey(method.getMangName()))
             throw new Exception(String.format("Method %s is already defined in this scope", methName));
 
+        boolean isOverridden = method.getOverridden();
         if(!isOverridden){
             method.setOffset(currFieldOffs);
             currMethOffs += 8;
         }
 
-        methodsSignatures.put(method.getMangName(), method.getRetId().getType());
+        methodsSignatures.put(method.getMangName(), method);
         methods.computeIfAbsent(methName, k -> new ArrayList<MethodInfo>()).add(method);
     }
 
@@ -91,15 +100,13 @@ class ClassInfo {
     public void printOffsets(){
         if(name.equals("main")) return;
 
-        for(Map.entry<String, Symbol> field : fields){
-            System.out.println(name + "." + field.getKey() + " : " + field.getOffset());
+        for(Map.Entry<String, Symbol> field : fields.entrySet()){
+            System.out.println(name + "." + field.getKey() + " : " + field.getValue().getOffset());
         }
-        for(Map.entry<String, List<MethInfo>> meth : methods){
-            for(Map.entry<String, MethInfo> meth2 : methods){
-                int offs = meth2.getOffset();
-                if(offs != -1)
-                    System.out.println(name + "." + meth.getKey() + " : " + offs);
-            }
+        for(Map.Entry<String, MethodInfo> meth : methodsSignatures.entrySet()){
+            int offs = meth.getValue().getOffset();
+            if(offs != -1)
+                System.out.println(name + "." + meth.getValue().getRetId().getName() + " : " + offs);
         }
     }
 }

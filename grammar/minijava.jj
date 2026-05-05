@@ -4,6 +4,7 @@ options {
 }
 
 PARSER_BEGIN(MiniJavaParser)
+  package lexer_parser;
   public class MiniJavaParser {}
 PARSER_END(MiniJavaParser)
 

@@ -2,6 +2,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import syntaxtree.*;
+import visitor.*;
+import lexer_parser.*;
+import src.symboltable.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -14,7 +17,7 @@ public class Main {
         for(int i = 0; i < args.length; ++i){
             SymbolTable st = new SymbolTable();
             try{
-                fis = new FileInputStream(args[0]);
+                fis = new FileInputStream(args[i]);
                 MiniJavaParser parser = new MiniJavaParser(fis);
 
                 Goal root = parser.Goal();

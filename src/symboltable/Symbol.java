@@ -1,9 +1,12 @@
-class Symbol {
+package symboltable;
+import java.util.Objects;
+
+public class Symbol {
     private String name;
     private String type;
     private int offset;
 
-    Symbol(String name, String type){
+    public Symbol(String name, String type){
         this.name = name;
         this.type = type;
         this.offset = -1;

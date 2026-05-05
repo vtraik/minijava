@@ -1,5 +1,7 @@
-// TO-DO: offset calc: override -> doesnt change state, overload: it does
-class SymbolTable {
+package symboltable;
+import java.util.*;
+
+public class SymbolTable {
     // keep the order of insertion to print offsets in order.
     Map<String, ClassInfo> classes = new LinkedHashMap<String, ClassInfo>();
 
@@ -19,25 +21,23 @@ class SymbolTable {
         if(classes.containsKey(class_obj))
             throw new Exception(String.format("Duplicate class %s found in file.", class_obj.getName()));
 
-        String superClass = class_obj.getSuper();
-        if(superClass != null){
-            if(!classes.containsKey(superClass))
+        ClassInfo superClass = class_obj.getSuper();
+        if(superClass == null)
                 throw new Exception(String.format("Class %s not defined", superClass));
-        }
 
-        classes.put(class_obj);
+        classes.put(class_obj.getName(), class_obj);
     }
 
-    public getSuperFieldOffs(String className){
+    public int getSuperFieldOffs(String className){
         return classes.get(className).getSuper().getFieldOffset();
     }
 
-    public getSuperMethOffs(String className){
+    public int getSuperMethOffs(String className){
         return classes.get(className).getSuper().getMethOffset();
     }
 
     public void printOffsets(){
-        for(Map.entry<String, ClassInfo> ce : classes)
+        for(Map.Entry<String, ClassInfo> ce : classes.entrySet())
             ce.getValue().printOffsets();
     }
 }

@@ -1,7 +1,8 @@
 import syntaxtree.*;
-import visitor.*;
+import symboltable.*;
+import java.util.*;
+import visitor.GJDepthFirst;
 
-// TO-DO: OVerloading prob in methods in a class.
 class DeclVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
 
@@ -27,7 +28,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return scope.substring(indx);
     }
 
-    private boolean subtype(String type1, String type2){
+    private boolean subtype(String type1, String type2){ // should fix error: doesnt return in all cases
         if(type2.equals("null")) return false;
         if(type1.equals("int")){
             if(type2.equals("int")) return true;
@@ -43,13 +44,13 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         }
         if(type1.equals(type2)) return true;
         String superType = symbt.getClass(type1).getSuperName();
-        subtype(type1, superType);
+        return subtype(type1, superType);
     }
 
     private boolean checkTypes(List<Symbol> l1, List<Symbol> l2){
         for(int i = 0; i < l1.size(); ++i){
             String t1 = l1.get(i).getType();
-            String t1 = l2.get(i).getType();
+            String t2 = l2.get(i).getType();
             if(!(subtype(t1, t2) || subtype(t2, t1)))
                 return true; // valid overload
         }
@@ -62,50 +63,52 @@ class DeclVisitor extends GJDepthFirst<String, String>{
             for(int j = i+1; j < methods.size(); ++j){
                 MethodInfo m1 = methods.get(i);
                 MethodInfo m2 = methods.get(j);
-                if(m1.getNumParams() != m2.getNumParams) continue;
+                if(m1.getNumParams() != m2.getNumParams()) continue;
 
                 if(!checkTypes(m1.getParams(), m2.getParams()))
-                    throw new Exception(String.format("Invalid overload between %s and %s", m1.getName(), m2.getName()));
+                    throw new Exception(String.format("Invalid overload between %s and %s",
+                                                      m1.getRetId().getName(), m2.getRetId().getName()));
             }
         }
     }
 
-    private void checkViolationsSuperClass(List<MethodInfo> meth, String className){
+    private void checkViolationsSuperClass(List<MethodInfo> meth, String className) throws Exception {
         ClassInfo superClass;
         String currSuperName = className;
         while((superClass = symbt.getSuper(currSuperName)) != null){
-            currSuperName = supperClass.getName();
+            currSuperName = superClass.getName();
             for(int i = 0; i < meth.size(); ++i){
                 if(meth.get(i).getOverridden()) continue; // dont check overridden methods
                 // check overload
                 List<MethodInfo> m1 = meth;
-                List<MethodInfo> m2 = superClass.getMethod();
+                List<MethodInfo> m2 = superClass.getMethod(currSuperName);
                 for(int j = 0; j < m2.size(); ++j){
                     if(m1.get(i).getNumParams() != m2.get(j).getNumParams()) continue;
                     if(!checkTypes(m1.get(i).getParams(), m2.get(j).getParams()))
                         throw new Exception(String.format("Invalid overload between %s and %s",
-                                                        m1.get(i).getName(), m2.get(j).getName()));
+                                                        m1.get(i).getRetId().getName(),
+                                                        m2.get(j).getRetId().getName()));
                 }
             }
         }
     }
 
-    private void checkMethodViolations(){
+    private void checkMethodViolations() throws Exception {
         // traverse symbol table:
         // - check override errors (intra class, iner class covered by addMethod)
         // - check overloading errors
         // - calc method offsets
 
         Map<String, ClassInfo> classes = symbt.getClasses();
-        for(Map.entry<String, ClassInfo> cl : classes){
-            Map<String, List<MethodInfo>> methods = cl.getMethods();
-            for(Map.entry<String, List<MethodInfo>> meth : methods){
+        for(Map.Entry<String, ClassInfo> cl : classes.entrySet()){
+            Map<String, List<MethodInfo>> methods = cl.getValue().getMethods();
+            for(Map.Entry<String, List<MethodInfo>> meth : methods.entrySet()){
                 List<MethodInfo> sameClass = meth.getValue(); // same class methods with id := name
                 // same class overloading
                 checkOverloading(sameClass);
 
                 // super class overloading/overriding
-                checkViolationsSuperClass(meth, cl.getKey());
+                checkViolationsSuperClass(sameClass, cl.getKey());
             }
         }
 
@@ -136,16 +139,16 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String className = n.f1.accept(this, null);
         String param = n.f11.accept(this, null);
 
-        ClassInfo mainClass = new ClassInfo(null, className, 0);
+        ClassInfo mainClass = new ClassInfo(null, className, 0, 0);
         Symbol retId = new Symbol("main", "void");
-        MethodInfo mainMeth = new MethodInfo(retId);
+        MethodInfo mainMeth = new MethodInfo(retId, "main_String[]", false);
         Symbol paramType = new Symbol(param, "String[]");
         mainMeth.addParam(paramType);
         mainClass.addMethod(mainMeth);
 
         symbt.addClass(mainClass);
 
-        String scope = String.format("%s|main", className);
+        String scope = String.format("%s|main_String[]", className); // ??
         n.f14.accept(this, scope);
         checkMethodViolations();
         return null;
@@ -163,7 +166,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     public String visit(ClassDeclaration n, String argu) throws Exception {
         String className = n.f1.accept(this, null);
 
-        ClassInfo classI = new ClassInfo(null, className, 0);
+        ClassInfo classI = new ClassInfo(null, className, 0, 0);
 
         symbt.addClass(classI);
 
@@ -190,7 +193,8 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String superClassName = n.f3.accept(this, null);
         int currFieldOffs = symbt.getSuperFieldOffs(className);
         int currMethOffs = symbt.getSuperMethOffs(className);
-        ClassInfo classI = new ClassInfo(superClassName, className, currFieldOffs, currMethOffs);
+        ClassInfo superClass = symbt.getClass(superClassName); // either: superclass | null
+        ClassInfo classI = new ClassInfo(superClass, className, currFieldOffs, currMethOffs);
 
         symbt.addClass(classI);
 
@@ -209,7 +213,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
    @Override
    public String visit(VarDeclaration n, String argu) throws Exception {
         String className = getFirstEl(argu);
-        String methName = getSecEl(argu);
+        String methName = getSecEl(argu); // mangled name
 
         String type = n.f0.accept(this, argu);
         String var = n.f1.accept(this, argu);
@@ -218,7 +222,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         if(methName.equals("null")){ // class scope => field
             symbt.getClass(className).addField(newVar);
         }else{                  // method scope => local var
-            symbt.getClass(className).getMethod(methName).addLocalVar(newVar);
+            symbt.getClass(className).getMethodMang(methName).addLocalVar(newVar);
         }
 
         return null;
@@ -247,6 +251,8 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String type = n.f1.accept(this, null);
         String methName = n.f2.accept(this, null);
         String mangName = new String(methName);
+        Symbol retId = new Symbol(methName, type);
+        MethodInfo methI = new MethodInfo(retId);
 
         String className = getFirstEl(argu);
 
@@ -259,33 +265,33 @@ class DeclVisitor extends GJDepthFirst<String, String>{
             Symbol param = new Symbol(name, ptype);
             methI.addParam(param);
         }
+        methI.setMangName(mangName);
 
-        Symbol retId = new Symbol(methName, type);
 
         ClassInfo superClass;
         String currSuperName = className;
-        bool isOverridden = false;
+        boolean isOverridden = false;
         while((superClass = symbt.getSuper(currSuperName)) != null){
             // check override
             // if a method with the same param types exists in super class it will be exactly 1 instance
             // (intra class instances are denied earlier)
             // so if it exists its either a valid override or a type error
-            String superMethRetType = superClass.getMethodRetType(meth.get(i).getMangName());
-            String methRetType = meth.getRetId().getType();
+            String superMethRetType = superClass.getMethodRetType(methI.getMangName());
+            String methRetType = methI.getRetId().getType();
             // class: int_foo_int_boolean, super: boolean_foo_int_boolean
             if(methRetType != null && !methRetType.equals(superMethRetType)){
                     throw new Exception(String.format("Override return types don't match in class %s: (%s-%s)",
-                                                    className, type, retType));
+                                                    className, methRetType, superMethRetType));
             }else if(methRetType != null){ // overriden method, skip overload check for this method.
                 isOverridden = true;
                 break;
             }
         }
 
-        MethInfo methI = new MethInfo(retId, mangName, isOverridden);
-        symbt.getClass(className).addMethod(methI, isOverriden);
+        methI.setOverridden(isOverridden);
+        symbt.getClass(className).addMethod(methI);
 
-        String scope = String.format("%s|%s", className, methName);
+        String scope = String.format("%s|%s", className, mangName); // ??
         n.f7.accept(this, scope);
         return null;
     }

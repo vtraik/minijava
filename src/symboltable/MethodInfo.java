@@ -75,7 +75,7 @@ public class MethodInfo {
     }
 
     public void addLocalVar(Symbol var) throws Exception {
-        if(localVars.containsKey(var.getName()))
+        if(localVars.containsKey(var.getName()) || params.contains(var))
             throw new Exception(String.format("Duplicate local variable %s in function %s", var.getName(), retId.getName()));
         localVars.put(var.getName(), var);
     }

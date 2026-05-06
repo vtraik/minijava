@@ -4,6 +4,7 @@ import visitor.GJDepthFirst;
 
 class RefVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
+    private int methNumber;
 
     RefVisitor(SymbolTable s){
         symbt = s;
@@ -16,7 +17,39 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
     private String getSecEl(String scope){
         int indx = scope.indexOf('|');
-        return scope.substring(indx);
+        return scope.substring(indx + 1);
+    }
+
+    private boolean subtype(String type1, String type2) throws Exception {
+        if(type1.equals("int"))
+            return type2.equals("int");
+        if(type1.equals("boolean"))
+            return type2.equals("boolean");
+        if(type1.equals("int[]"))
+            return type2.equals("int[]");
+
+        ClassInfo classType1 = symbt.getClass(type1);
+        ClassInfo classType2 = symbt.getClass(type2);
+        if(classType1 == null)
+            throw new Exception(String.format("Undefined type %s", type1));
+        else if(classType2 == null)
+            throw new Exception(String.format("Undefined type %s", type2));
+
+        if(type1.equals(type2))
+            return true;
+
+        return subtyperec(type1, type2);
+    }
+
+    private boolean subtyperec(String type1, String type2) {
+        if(type2.equals("null")){
+            return false;
+        }else if(type1.equals(type2)){
+            return true;
+        }else{
+            String superType = symbt.getClass(type2).getSuper().getName();
+            return subtyperec(type1, superType);
+        }
     }
 
     // f0  -> "class"
@@ -39,7 +72,8 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f17 -> "}"
     @Override
     public String visit(MainClass n, String argu) throws Exception {
-
+        String className = n.f1.accept(this, null);
+        n.f15.accept(this, className + "|null");
         return null;
     }
 
@@ -51,7 +85,8 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f5 -> "}"
     @Override
     public String visit(ClassDeclaration n, String argu) throws Exception {
-
+        String className = n.f1.accept(this, null);
+        n.f4.accept(this, className + "|null");
         return null;
     }
 
@@ -65,7 +100,8 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f7 -> "}"
     @Override
     public String visit(ClassExtendsDeclaration n, String argu) throws Exception {
-
+        String className = n.f1.accept(this, null);
+        n.f6.accept(this, className + "|null");
         return null;
     }
 
@@ -84,6 +120,15 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f12 -> "}"
     @Override
     public String visit(MethodDeclaration n, String argu) throws Exception {
+        String methRetType = n.f1.accept(this, null);
+        MethodInfo method = symbt.getNumMeth(methNumber++); // same visit on method decl as the 1st pass
+        String methName = method.getMangName();
+        String className = getFirstEl(argu);
+        n.f8.accept(this, className + "|" + methName);
+
+        String expRetType = n.f10.accept(this, className + "|" + methName);
+        if(!subtype(expRetType, methRetType))
+            throw new Exception(String.format("Invalid return type in %s.%s", className, methName));
 
         return null;
     }
@@ -109,7 +154,10 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f3 -> ";"
     @Override
     public String visit(AssignmentStatement n, String argu) throws Exception {
-
+        String id = n.f0.accept(this, null);
+        String expr = n.f2.accept(this, argu);
+        if(!subtype(expr, id))
+            throw new Exception(String.format("Assignment type mismatch lval:%s, rval:%s", id, expr));
         return null;
     }
 
@@ -235,6 +283,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
     public String visit(MessageSend n, String argu) throws Exception {
 
         // return type;
+        return null;
     }
 
     // f0 -> Expression()
@@ -242,14 +291,16 @@ class RefVisitor extends GJDepthFirst<String, String>{
     @Override
     public String visit(ExpressionList n, String argu) throws Exception {
 
-        return ret;
+        // return ret;
+        return null;
     }
 
     // f0 -> ( ExpressionTerm() )*
     @Override
     public String visit(ExpressionTail n, String argu) throws Exception {
 
-        return ret;
+        // return ret;
+        return null;
     }
 
     // f0 -> ","
@@ -276,20 +327,23 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
     @Override
     public String visit(Identifier n, String argu) throws Exception {
-
-        // return type;
+        String className = getFirstEl(argu);
+        String methMangName = getSecEl(argu);
+        return symbt.getClass(className).getMethodRetType(methMangName); // should fix
     }
 
     @Override
     public String visit(Type n, String argu) throws Exception {
 
-        return n.f0.which == 3 ? ((Identifier) n.f0.choice).f0.tokenImage
-                                : super.visit(n, argu);
+        return null;
+        // return n.f0.which == 3 ? ((Identifier) n.f0.choice).f0.tokenImage
+        //                         : super.visit(n, argu);
     }
 
     @Override
     public String visit(ThisExpression n, String argu) {
         // return class_id;
+        return null;
     }
 
     // f0 -> "new"
@@ -311,6 +365,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
     public String visit(AllocationExpression n, String argu) throws Exception {
 
         // return type;
+        return null;
     }
 
     // f0 -> "!"

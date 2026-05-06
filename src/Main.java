@@ -15,14 +15,14 @@ public class Main {
 
         FileInputStream fis = null;
         for(int i = 0; i < args.length; ++i){
-            SymbolTable st = new SymbolTable();
             try{
                 fis = new FileInputStream(args[i]);
                 MiniJavaParser parser = new MiniJavaParser(fis);
 
                 Goal root = parser.Goal();
 
-                System.err.println("Program parsed successfully.");
+                System.out.println("Program parsed successfully.");
+                SymbolTable st = new SymbolTable();
 
                 // first pass: find declerations and populate symbol table
                 DeclVisitor decl = new DeclVisitor(st);
@@ -32,14 +32,13 @@ public class Main {
                 RefVisitor ref = new RefVisitor(st);
                 root.accept(ref, null);
 
+                // System.out.println("Program is semantically correct");
+
                 // print offsets
                 st.printOffsets();
             }
-            catch(ParseException ex){
-                System.out.println(ex.getMessage());
-            }
-            catch(FileNotFoundException ex){
-                System.err.println(ex.getMessage());
+            catch(Exception ex){
+                System.err.println("Error: " + ex.getMessage());
             }
             finally{
                 try{

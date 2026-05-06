@@ -25,29 +25,42 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
     private String getSecEl(String scope){
         int indx = scope.indexOf('|');
-        return scope.substring(indx+1);
+        return scope.substring(indx + 1);
     }
 
-    private boolean subtype(String type1, String type2){
-        if(type2.equals("null")) return false;
-        if(type1.equals("int")){
-            if(type2.equals("int")) return true;
-            else return false;
-        }
-        if(type1.equals("boolean")){
-            if(type2.equals("boolean")) return true;
-            else return false;
-        }
-        if(type1.equals("int[]")){
-            if(type2.equals("int[]")) return true;
-            else return false;
-        }
-        if(type1.equals(type2)) return true;
-        String superType = symbt.getClass(type1).getSuper().getName();
-        return subtype(type1, superType);
+    private boolean subtype(String type1, String type2) throws Exception {
+        if(type1.equals("int"))
+            return type2.equals("int");
+        if(type1.equals("boolean"))
+            return type2.equals("boolean");
+        if(type1.equals("int[]"))
+            return type2.equals("int[]");
+
+        ClassInfo classType1 = symbt.getClass(type1);
+        ClassInfo classType2 = symbt.getClass(type2);
+        if(classType1 == null)
+            throw new Exception(String.format("Undefined type %s", type1));
+        else if(classType2 == null)
+            throw new Exception(String.format("Undefined type %s", type2));
+
+        if(type1.equals(type2))
+            return true;
+
+        return subtyperec(type1, type2);
     }
 
-    private boolean checkTypes(List<Symbol> l1, List<Symbol> l2){
+    private boolean subtyperec(String type1, String type2) {
+        if(type2.equals("null")){
+            return false;
+        }else if(type1.equals(type2)){
+            return true;
+        }else{
+            String superType = symbt.getClass(type2).getSuper().getName();
+            return subtyperec(type1, superType);
+        }
+    }
+
+    private boolean checkTypes(List<Symbol> l1, List<Symbol> l2) throws Exception {
         for(int i = 0; i < l1.size(); ++i){
             String t1 = l1.get(i).getType();
             String t2 = l2.get(i).getType();
@@ -279,7 +292,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
             String methRetType = methI.getRetId().getType();
             // class: int_foo_int_boolean, super: boolean_foo_int_boolean
             if(superMethRetType != null && !methRetType.equals(superMethRetType)){
-                    throw new Exception(String.format("Override return types don't match in class %s: (%s-%s)",
+                    throw new Exception(String.format("Override return types don't match in class %s (%s-%s)",
                                                     className, methRetType, superMethRetType));
             }else if(superMethRetType != null){ // overriden method, skip overload check for this method.
                 isOverridden = true;
@@ -289,6 +302,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         methI.setOverridden(isOverridden);
         symbt.getClass(className).addMethod(methI);
+        symbt.addNumMeth(methI); // keep the visited order of methods (needed in ref pass)
 
         String scope = String.format("%s|%s", className, mangName);
         n.f7.accept(this, scope);
@@ -338,7 +352,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
      * f1 -> Identifier()
      */
     @Override
-    public String visit(FormalParameter n, String argu) throws Exception{
+    public String visit(FormalParameter n, String argu) throws Exception {
         String type = n.f0.accept(this, null);
         String name = n.f1.accept(this, null);
         return type + "|" + name;

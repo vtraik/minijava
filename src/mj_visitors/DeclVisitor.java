@@ -72,7 +72,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         }
     }
 
-    private void checkViolationsSuperClass(List<MethodInfo> meth, String className) throws Exception {
+    private void checkOverloadingSuperClass(List<MethodInfo> meth, String className) throws Exception {
         ClassInfo superClass;
         String currSuperName = className;
         while((superClass = symbt.getSuper(currSuperName)) != null){
@@ -93,7 +93,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         }
     }
 
-    private void checkMethodViolations() throws Exception {
+    private void checkOverloadingViolations() throws Exception {
         // traverse symbol table:
         // - check override errors (intra class, iner class covered by addMethod)
         // - check overloading errors
@@ -108,7 +108,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
                 checkOverloading(sameClass);
 
                 // super class overloading/overriding
-                checkViolationsSuperClass(sameClass, cl.getKey());
+                checkOverloadingSuperClass(sameClass, cl.getKey());
             }
         }
 
@@ -141,7 +141,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         ClassInfo mainClass = new ClassInfo(null, className, 0, 0);
         Symbol retId = new Symbol("main", "void");
-        MethodInfo mainMeth = new MethodInfo(retId, "main_String[]", false);
+        MethodInfo mainMeth = new MethodInfo(retId, "main_String[]", true); // dont count offset for main
         Symbol paramType = new Symbol(param, "String[]");
         mainMeth.addParam(paramType);
         mainClass.addMethod(mainMeth);
@@ -150,7 +150,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         String scope = String.format("%s|main_String[]", className);
         n.f14.accept(this, scope);
-        checkMethodViolations();
+        checkOverloadingViolations();
         return null;
     }
 

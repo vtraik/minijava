@@ -94,15 +94,18 @@ public class ClassInfo {
     }
 
     public void printOffsets(){
-        if(name.equals("main")) return;
-
+        if(methods.containsKey("main")) return;
+        System.out.println("-----------Class " + name + "-----------");
+        System.out.println("--Variables---");
         for(Map.Entry<String, Symbol> field : fields.entrySet()){
             System.out.println(name + "." + field.getKey() + " : " + field.getValue().getOffset());
         }
+        System.out.println("---Methods---");
         for(Map.Entry<String, MethodInfo> meth : methodsSignatures.entrySet()){
             int offs = meth.getValue().getOffset();
             if(offs != -1)
                 System.out.println(name + "." + meth.getValue().getRetId().getName() + " : " + offs);
         }
+        System.out.println();
     }
 }

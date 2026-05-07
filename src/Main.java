@@ -32,7 +32,7 @@ public class Main {
                 RefVisitor ref = new RefVisitor(st);
                 root.accept(ref, null);
 
-                // System.out.println("Program is semantically correct");
+                System.out.println("Program is semantically correct.");
 
                 // print offsets
                 st.printOffsets();

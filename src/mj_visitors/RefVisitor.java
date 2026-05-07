@@ -1,7 +1,7 @@
 import syntaxtree.*;
 import symboltable.*;
 import visitor.GJDepthFirst;
-import java.util.List;
+import java.util.*;
 
 class RefVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
@@ -100,7 +100,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
     @Override
     public String visit(MainClass n, String argu) throws Exception {
         String className = n.f1.f0.tokenImage;
-        n.f15.accept(this, className + "|null");
+        n.f15.accept(this, className + "|main_String[]");
 
         return null;
     }
@@ -159,7 +159,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String expRetType = n.f10.accept(this, className + "|" + methName);
         if(!subtype(expRetType, methRetType))
             throw new Exception(String.format("Return type mismatch in %s.%s -> expected <%s>, got <%s>",
-                                              className, methName, methRetType, expRetType));
+                                              className, method.getRetId().getName(), methRetType, expRetType));
 
         return null;
     }
@@ -374,7 +374,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f4 -> ( ExpressionList() )?
     // f5 -> ")"
     @Override
-    public String visit(MessageSend n, String argu) throws Exception { // ??
+    public String visit(MessageSend n, String argu) throws Exception {
         String exprType = n.f0.accept(this, argu);
         String id = n.f2.f0.tokenImage;
         String retType = null;
@@ -385,7 +385,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
         List<MethodInfo> classMeths = classI.getMethod(id);
         if(classMeths == null)
-            throw new Exception(String.format("Method %s isn't defined", classI.getName()));
+            throw new Exception(String.format("Method %s isn't defined", id));
 
         String[] expressions = n.f4.present() ? n.f4.accept(this, argu).split(",") : new String[0];
 
@@ -399,7 +399,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
             argMatched = 0;
             for(int j = 0; j < numParams; ++j){
-                String methType = params.get(i).getType();
+                String methType = params.get(j).getType();
                 if(!subtype(expressions[j], methType))
                     break;
                 ++argMatched;
@@ -469,14 +469,17 @@ class RefVisitor extends GJDepthFirst<String, String>{
     @Override
     public String visit(Identifier n, String argu) throws Exception {
         String ret;
-        if((ret = findVarType(n.f0.tokenImage, argu)) == null){
-            String classN = getFirstEl(argu);
-            String methN = getSecEl(argu);
-            int idx = methN.indexOf('_');
-            methN = (idx == -1) ? methN : methN.substring(0, idx);
+        if((ret = findVarType(n.f0.tokenImage, argu)) != null)
+            return ret;
+
+        String classN = getFirstEl(argu);
+        String methN = getSecEl(argu);
+        int idx = methN.indexOf('_');
+        methN = (idx == -1) ? methN : methN.substring(0, idx);
+        if(methN.equals("null"))
+            throw new Exception(String.format("Undefined identifier %s in %s (field variable)", n.f0.tokenImage, classN));
+        else
             throw new Exception(String.format("Undefined identifier %s in %s.%s", n.f0.tokenImage, classN, methN));
-        }
-        return ret;
     }
 
     @Override

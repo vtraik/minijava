@@ -63,7 +63,7 @@ public class ClassInfo {
     public void addMethod(MethodInfo method) throws Exception {
         String methName = method.getRetId().getName();
         if(methodsSignatures.containsKey(method.getMangName()))
-            throw new Exception(String.format("Method %s is already defined in this scope", methName));
+            throw new Exception(String.format("Method %s is already defined in this scope (class %s)", methName, name));
 
         boolean isOverridden = method.getOverridden();
         if(!isOverridden){

@@ -1,6 +1,7 @@
 import syntaxtree.*;
 import symboltable.*;
 import visitor.GJDepthFirst;
+import java.util.List;
 
 class RefVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
@@ -42,14 +43,40 @@ class RefVisitor extends GJDepthFirst<String, String>{
     }
 
     private boolean subtyperec(String type1, String type2) {
-        if(type2.equals("null")){
-            return false;
-        }else if(type1.equals(type2)){
+        if(type1.equals(type2) && type1 != null)
             return true;
-        }else{
-            String superType = symbt.getClass(type2).getSuper().getName();
-            return subtyperec(type1, superType);
+
+        ClassInfo superClass = symbt.getClass(type2).getSuper();
+        if(superClass == null)
+            return false;
+        else
+            return subtyperec(type1, superClass.getName());
+    }
+
+    private String findVarType(String id, String scope) throws Exception {
+        String className = getFirstEl(scope);
+        String methMangName = getSecEl(scope);
+
+        // check Method scope
+        if(!methMangName.equals("null")){
+            MethodInfo meth = symbt.getClass(className).getMethodMang(methMangName);
+            Symbol s = meth.resolveBinding(id);
+            if(s != null)
+                return s.getType();
         }
+
+        // check Class field scope
+        Symbol s = symbt.getClass(className).getField(id);
+        if(s != null)
+            return s.getType();
+
+        // find in super class
+        ClassInfo superClassName = symbt.getSuper(className);
+
+        if(superClassName == null) // not found
+            return null;
+        else
+            return findVarType(id, superClassName.getName() + "|" + methMangName);
     }
 
     // f0  -> "class"
@@ -72,8 +99,9 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f17 -> "}"
     @Override
     public String visit(MainClass n, String argu) throws Exception {
-        String className = n.f1.accept(this, null);
+        String className = n.f1.f0.tokenImage;
         n.f15.accept(this, className + "|null");
+
         return null;
     }
 
@@ -85,8 +113,9 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f5 -> "}"
     @Override
     public String visit(ClassDeclaration n, String argu) throws Exception {
-        String className = n.f1.accept(this, null);
+        String className = n.f1.f0.tokenImage;
         n.f4.accept(this, className + "|null");
+
         return null;
     }
 
@@ -100,8 +129,9 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f7 -> "}"
     @Override
     public String visit(ClassExtendsDeclaration n, String argu) throws Exception {
-        String className = n.f1.accept(this, null);
+        String className = n.f1.f0.tokenImage;
         n.f6.accept(this, className + "|null");
+
         return null;
     }
 
@@ -128,7 +158,8 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
         String expRetType = n.f10.accept(this, className + "|" + methName);
         if(!subtype(expRetType, methRetType))
-            throw new Exception(String.format("Invalid return type in %s.%s", className, methName));
+            throw new Exception(String.format("Return type mismatch in %s.%s -> expected <%s>, got <%s>",
+                                              className, methName, methRetType, expRetType));
 
         return null;
     }
@@ -154,10 +185,11 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f3 -> ";"
     @Override
     public String visit(AssignmentStatement n, String argu) throws Exception {
-        String id = n.f0.accept(this, null);
+        String id = n.f0.accept(this, argu);
         String expr = n.f2.accept(this, argu);
         if(!subtype(expr, id))
-            throw new Exception(String.format("Assignment type mismatch lval:%s, rval:%s", id, expr));
+            throw new Exception(String.format("Assignment type mismatch -> lval:%s, rval:%s", id, expr));
+
         return null;
     }
 
@@ -170,6 +202,18 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f6 -> ";"
     @Override
     public String visit(ArrayAssignmentStatement n, String argu) throws Exception {
+        String idType = n.f2.accept(this, argu);
+        String indxType = n.f2.accept(this, argu);
+        String exprType = n.f5.accept(this, argu);
+
+        if(!idType.equals("int[]"))
+            throw new Exception(String.format("Invalid lvalue type in array assignment statement -> %s", idType));
+
+        if(!indxType.equals("int"))
+            throw new Exception("Array size expression must have integral type");
+
+        if(!exprType.equals("int"))
+            throw new Exception("rvalue must have integral type in array assignment");
 
         return null;
     }
@@ -183,6 +227,12 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f6 -> Statement()
     @Override
     public String visit(IfStatement n, String argu) throws Exception {
+        String exprType = n.f2.accept(this, argu);
+        if(!exprType.equals("boolean"))
+            throw new Exception("Condition in if statement must be of type boolean");
+
+        n.f4.accept(this, argu);
+        n.f6.accept(this, argu);
 
         return null;
     }
@@ -194,6 +244,11 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f4 -> Statement()
     @Override
     public String visit(WhileStatement n, String argu) throws Exception {
+        String exprType = n.f2.accept(this, argu);
+        if(!exprType.equals("boolean"))
+            throw new Exception("Condition in while statement must be of type boolean");
+
+        n.f4.accept(this, argu);
 
         return null;
     }
@@ -204,8 +259,8 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f3 -> ")"
     // f4 -> ";"
     @Override
-    public String visit(PrintStatement n, String argu) throws Exception {
-
+    public String visit(PrintStatement n, String argu) throws Exception { // what types are allowed ??
+        n.f2.accept(this, argu);
         return null;
     }
 
@@ -214,6 +269,12 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f2 -> Clause()
     @Override
     public String visit(AndExpression n, String argu) throws Exception {
+        String type1 = n.f0.accept(this, argu);
+        String type2 = n.f2.accept(this, argu);
+        if(!type1.equals("boolean"))
+            throw new Exception(String.format("Invalid type in (&&) expression -> %s", type1));
+        if(!type2.equals("boolean"))
+            throw new Exception(String.format("Invalid type in (&&) expression -> %s", type2));
 
         return "boolean";
     }
@@ -223,6 +284,12 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f2 -> PrimaryExpression()
     @Override
     public String visit(CompareExpression n, String argu) throws Exception {
+        String type1 = n.f0.accept(this, argu);
+        String type2 = n.f2.accept(this, argu);
+        if(!type1.equals("int"))
+            throw new Exception(String.format("Invalid type in (<) expression -> %s", type1));
+        if(!type2.equals("int"))
+            throw new Exception(String.format("Invalid type in (<) expression -> %s", type2));
 
         return "boolean";
     }
@@ -232,6 +299,12 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f2 -> PrimaryExpression()
     @Override
     public String visit(PlusExpression n, String argu) throws Exception {
+        String type1 = n.f0.accept(this, argu);
+        String type2 = n.f2.accept(this, argu);
+        if(!type1.equals("int"))
+            throw new Exception(String.format("Invalid type in (+) expression -> %s", type1));
+        if(!type2.equals("int"))
+            throw new Exception(String.format("Invalid type in (+) expression -> %s", type2));
 
         return "int";
     }
@@ -241,6 +314,12 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f2 -> PrimaryExpression()
     @Override
     public String visit(MinusExpression n, String argu) throws Exception {
+        String type1 = n.f0.accept(this, argu);
+        String type2 = n.f2.accept(this, argu);
+        if(!type1.equals("int"))
+            throw new Exception(String.format("Invalid type in (-) expression -> %s", type1));
+        if(!type2.equals("int"))
+            throw new Exception(String.format("Invalid type in (-) expression -> %s", type2));
 
         return "int";
     }
@@ -250,6 +329,12 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f2 -> PrimaryExpression()
     @Override
     public String visit(TimesExpression n, String argu) throws Exception {
+        String type1 = n.f0.accept(this, argu);
+        String type2 = n.f2.accept(this, argu);
+        if(!type1.equals("int"))
+            throw new Exception(String.format("Invalid type in (*) expression -> %s", type1));
+        if(!type2.equals("int"))
+            throw new Exception(String.format("Invalid type in (*) expression -> %s", type2));
 
         return "int";
     }
@@ -260,6 +345,12 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f3 -> "]"
     @Override
     public String visit(ArrayLookup n, String argu) throws Exception {
+        String type1 = n.f0.accept(this, argu);
+        String type2 = n.f2.accept(this, argu);
+        if(!type1.equals("int[]"))
+            throw new Exception(String.format("Invalid type in array lookup expression -> %s", type1));
+        if(!type2.equals("int"))
+            throw new Exception(String.format("Invalid type in array index -> %s", type2));
 
         return "int";
     }
@@ -269,6 +360,9 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f2 -> "length"
     @Override
     public String visit(ArrayLength n, String argu) throws Exception {
+        String type1 = n.f0.accept(this, argu);
+        if(!type1.equals("int[]"))
+            throw new Exception(String.format(".length is not supported for type -> %s", type1));
 
         return "int";
     }
@@ -280,27 +374,74 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f4 -> ( ExpressionList() )?
     // f5 -> ")"
     @Override
-    public String visit(MessageSend n, String argu) throws Exception {
+    public String visit(MessageSend n, String argu) throws Exception { // ??
+        String exprType = n.f0.accept(this, argu);
+        String id = n.f2.f0.tokenImage;
+        String retType = null;
 
-        // return type;
-        return null;
+        ClassInfo classI = symbt.getClass(exprType);
+        if(classI == null)
+            throw new Exception(String.format("Class %s isn't defined", classI.getName()));
+
+        List<MethodInfo> classMeths = classI.getMethod(id);
+        if(classMeths == null)
+            throw new Exception(String.format("Method %s isn't defined", classI.getName()));
+
+        String[] expressions = n.f4.present() ? n.f4.accept(this, null).split(",") : new String[0];
+
+        int argMatched = -1;
+        for(int i = 0; i < classMeths.size(); ++i){
+            MethodInfo meth = classMeths.get(i);
+            int numParams = meth.getNumParams();
+            List<Symbol> params = meth.getParams();
+
+            if(expressions.length != numParams) continue;
+
+            argMatched = 0;
+            for(int j = 0; j < numParams; ++j){
+                String methType = params.get(i).getType();
+                if(!subtype(expressions[j], methType))
+                    break;
+                ++argMatched;
+            }
+
+            if(argMatched == numParams){
+                retType = meth.getRetId().getType();
+                break;
+            }
+        }
+
+        if(argMatched != expressions.length){
+            String types = String.join(", ", expressions);
+            throw new Exception(String.format("No matching method found -> %s.%s(%s)",
+                                classI.getName(), id, types));
+        }
+
+        return retType;
     }
 
     // f0 -> Expression()
     // f1 -> ExpressionTail()
     @Override
     public String visit(ExpressionList n, String argu) throws Exception {
+        String ret = n.f0.accept(this, null);
 
-        // return ret;
-        return null;
+        if (n.f1 != null) {
+            ret += n.f1.accept(this, null);
+        }
+
+        return ret;
     }
 
     // f0 -> ( ExpressionTerm() )*
     @Override
     public String visit(ExpressionTail n, String argu) throws Exception {
+        String ret = "";
+        for (Node node: n.f0.nodes) {
+            ret += "," + node.accept(this, null);
+        }
 
-        // return ret;
-        return null;
+        return ret;
     }
 
     // f0 -> ","
@@ -327,23 +468,23 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
     @Override
     public String visit(Identifier n, String argu) throws Exception {
-        String className = getFirstEl(argu);
-        String methMangName = getSecEl(argu);
-        return symbt.getClass(className).getMethodRetType(methMangName); // should fix
+        String ret = null;
+        return (ret = findVarType(n.f0.tokenImage, argu)) != null ? ret : null;
     }
 
     @Override
     public String visit(Type n, String argu) throws Exception {
-
-        return null;
-        // return n.f0.which == 3 ? ((Identifier) n.f0.choice).f0.tokenImage
-        //                         : super.visit(n, argu);
+        // decl id (Type Identifier) has different action from ref id (Identifier)
+        if(n.f0.which == 3) // in declaration => should return just the id and not my override
+            return ((Identifier) n.f0.choice).f0.tokenImage;
+        else
+           return super.visit(n, argu);
     }
 
     @Override
     public String visit(ThisExpression n, String argu) {
-        // return class_id;
-        return null;
+        String className = getFirstEl(argu);
+        return className;
     }
 
     // f0 -> "new"
@@ -353,6 +494,9 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f4 -> "]"
     @Override
     public String visit(ArrayAllocationExpression n, String argu) throws Exception {
+        String type = n.f3.accept(this, argu);
+        if(!type.equals("int"))
+            throw new Exception("Array size expression must have integral type");
 
         return "int[]";
     }
@@ -363,15 +507,21 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f3 -> ")"
     @Override
     public String visit(AllocationExpression n, String argu) throws Exception {
+        String className = n.f1.f0.tokenImage;
+        ClassInfo classI = symbt.getClass(className);
+        if(classI == null)
+            throw new Exception(String.format("Class %s isn't defined", className));
 
-        // return type;
-        return null;
+        return classI.getName();
     }
 
     // f0 -> "!"
     // f1 -> Clause()
     @Override
     public String visit(NotExpression n, String argu) throws Exception {
+        String type = n.f1.accept(this, argu);
+        if(!type.equals("boolean"))
+            throw new Exception(String.format("Invalid not expression type -> %s", type));
 
         return "boolean";
     }

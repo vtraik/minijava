@@ -36,6 +36,14 @@ public class MethodInfo {
         return localVars.containsKey(name) ? localVars.get(name) : null;
     }
 
+    public Symbol resolveBinding(String name){
+        if(localVars.containsKey(name)){
+            return localVars.get(name);
+        }
+        int indx;
+        return (indx = params.indexOf(new Symbol(name, null))) == -1 ? null : params.get(indx);
+    }
+
     public int getNumParams(){
         return params.size();
     }

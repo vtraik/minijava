@@ -50,14 +50,14 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     }
 
     private boolean subtyperec(String type1, String type2) {
-        if(type2.equals("null")){
-            return false;
-        }else if(type1.equals(type2)){
+        if(type1.equals(type2) && type1 != null)
             return true;
-        }else{
-            String superType = symbt.getClass(type2).getSuper().getName();
-            return subtyperec(type1, superType);
-        }
+
+        ClassInfo superClass = symbt.getClass(type2).getSuper();
+        if(superClass == null)
+            return false;
+        else
+            return subtyperec(type1, superClass.getName());
     }
 
     private boolean checkTypes(List<Symbol> l1, List<Symbol> l2) throws Exception {

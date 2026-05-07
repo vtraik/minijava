@@ -202,7 +202,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f6 -> ";"
     @Override
     public String visit(ArrayAssignmentStatement n, String argu) throws Exception {
-        String idType = n.f2.accept(this, argu);
+        String idType = n.f0.accept(this, argu);
         String indxType = n.f2.accept(this, argu);
         String exprType = n.f5.accept(this, argu);
 
@@ -387,7 +387,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
         if(classMeths == null)
             throw new Exception(String.format("Method %s isn't defined", classI.getName()));
 
-        String[] expressions = n.f4.present() ? n.f4.accept(this, null).split(",") : new String[0];
+        String[] expressions = n.f4.present() ? n.f4.accept(this, argu).split(",") : new String[0];
 
         int argMatched = -1;
         for(int i = 0; i < classMeths.size(); ++i){
@@ -424,10 +424,10 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f1 -> ExpressionTail()
     @Override
     public String visit(ExpressionList n, String argu) throws Exception {
-        String ret = n.f0.accept(this, null);
+        String ret = n.f0.accept(this, argu);
 
         if (n.f1 != null) {
-            ret += n.f1.accept(this, null);
+            ret += n.f1.accept(this, argu);
         }
 
         return ret;
@@ -438,7 +438,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
     public String visit(ExpressionTail n, String argu) throws Exception {
         String ret = "";
         for (Node node: n.f0.nodes) {
-            ret += "," + node.accept(this, null);
+            ret += "," + node.accept(this, argu);
         }
 
         return ret;
@@ -468,8 +468,15 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
     @Override
     public String visit(Identifier n, String argu) throws Exception {
-        String ret = null;
-        return (ret = findVarType(n.f0.tokenImage, argu)) != null ? ret : null;
+        String ret;
+        if((ret = findVarType(n.f0.tokenImage, argu)) == null){
+            String classN = getFirstEl(argu);
+            String methN = getSecEl(argu);
+            int idx = methN.indexOf('_');
+            methN = (idx == -1) ? methN : methN.substring(0, idx);
+            throw new Exception(String.format("Undefined identifier %s in %s.%s", n.f0.tokenImage, classN, methN));
+        }
+        return ret;
     }
 
     @Override

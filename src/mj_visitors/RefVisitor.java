@@ -11,69 +11,22 @@ class RefVisitor extends GJDepthFirst<String, String>{
         symbt = s;
     }
 
-    // find the NodeToken object to extract line info
-    // private NodeToken tok(Node n) throws Exception {
-    //     // base case: nodetoken
-    //     if (n instanceof NodeToken) {
-    //         return (NodeToken) n;
-    //     }
-
-    //     // rules i follow the parse tree
-    //     if (n instanceof NodeChoice) {
-    //         return tok(((NodeChoice) n).choice);
-    //     }
-    //     if (n instanceof Expression) {
-    //         return tok(((Expression) n).f0.choice);
-    //     }
-    //     if (n instanceof Clause) {
-    //         return tok(((Clause) n).f0.choice);
-    //     }
-    //     if (n instanceof PrimaryExpression) {
-    //         return tok(((PrimaryExpression) n).f0.choice);
-    //     }
-
-    //     // rules that i continue to get the coordinates of the first non terminal
-    //     if (n instanceof AndExpression) return tok(((AndExpression) n).f0);
-    //     if (n instanceof CompareExpression) return tok(((CompareExpression) n).f0);
-    //     if (n instanceof PlusExpression) return tok(((PlusExpression) n).f0);
-    //     if (n instanceof MinusExpression) return tok(((MinusExpression) n).f0);
-    //     if (n instanceof TimesExpression) return tok(((TimesExpression) n).f0);
-    //     if (n instanceof ArrayLookup) return tok(((ArrayLookup) n).f0);
-    //     if (n instanceof ArrayLength) return tok(((ArrayLength) n).f0);
-    //     if (n instanceof MessageSend) return tok(((MessageSend) n).f0);
-
-    //     // base cases: rules where the first non terminal is a token
-    //     if (n instanceof NotExpression) return ((NotExpression) n).f0;
-    //     if (n instanceof BracketExpression) return ((BracketExpression) n).f0;
-    //     if (n instanceof IntegerLiteral) return ((IntegerLiteral) n).f0;
-    //     if (n instanceof TrueLiteral) return ((TrueLiteral) n).f0;
-    //     if (n instanceof FalseLiteral) return ((FalseLiteral) n).f0;
-    //     if (n instanceof ThisExpression) return ((ThisExpression) n).f0;
-    //     if (n instanceof ArrayAllocationExpression) return ((ArrayAllocationExpression) n).f0;
-    //     if (n instanceof AllocationExpression) return ((AllocationExpression) n).f0;
-
-    //     throw new Exception("Cannot extract token from " + n.getClass().getSimpleName());
-    // }
-    public NodeToken tok(Node n) {
-        // BASE CASE: The finish line
-        if (n instanceof NodeToken) {
+    // find nodetoken to get error coordinates
+    public NodeToken tok(Node n){
+        if(n instanceof NodeToken){
             return (NodeToken) n;
         }
 
-        // SPECIAL CASE: The "Choice" box (Expression, PrimaryExpression, etc.)
-        if (n instanceof NodeChoice) {
+        if(n instanceof NodeChoice){
             return tok(((NodeChoice) n).choice);
         }
 
-        // GENERIC CASE: Try to dive into the first field (f0)
-        // This handles PlusExpression, Assignment, While, etc.
-        try {
-            // We use reflection to find "f0" so we don't have to list 20 classes
+        try{
             java.lang.reflect.Field f = n.getClass().getField("f0");
             Node child = (Node) f.get(n);
             return tok(child);
-        } catch (Exception e) {
-            return null; // Or throw an error
+        }catch(Exception e){
+            return null;
         }
     }
 

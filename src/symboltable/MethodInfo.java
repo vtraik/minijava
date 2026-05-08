@@ -78,13 +78,13 @@ public class MethodInfo {
 
     public void addParam(Symbol param) throws Exception {
         if(params.contains(param))
-            throw new Exception(String.format("Duplicate parameter %s in method %s", param.getName(), retId.getName()));
+            throw new Exception(String.format("Duplicate parameter %s in method -> %s", param.getName(), retId.getName()));
         params.add(param);
     }
 
     public void addLocalVar(Symbol var) throws Exception {
         if(localVars.containsKey(var.getName()) || params.contains(var))
-            throw new Exception(String.format("Duplicate local variable %s in method %s", var.getName(), retId.getName()));
+            throw new Exception(String.format("Duplicate symbol %s in method scope -> %s", var.getName(), retId.getName()));
         localVars.put(var.getName(), var);
     }
 }

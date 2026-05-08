@@ -63,7 +63,7 @@ public class ClassInfo {
     public void addMethod(MethodInfo method) throws Exception {
         String methName = method.getRetId().getName();
         if(methodsSignatures.containsKey(method.getMangName()))
-            throw new Exception(String.format("Method %s is already defined in this scope (class %s)", methName, name));
+            throw new Exception(String.format("Method %s is already defined in this scope -> class %s", methName, name));
 
         boolean isOverridden = method.getOverridden();
         if(!isOverridden){
@@ -79,7 +79,7 @@ public class ClassInfo {
     public void addField(Symbol field) throws Exception {
         String fieldName = field.getName();
         if(fields.containsKey(fieldName))
-            throw new Exception(String.format("Symbol %s is already defined in this scope", fieldName));
+            throw new Exception(String.format("Symbol %s is already defined in this scope -> class %s", fieldName, name));
 
         field.setOffset(currFieldOffs);
         fields.put(fieldName, field);

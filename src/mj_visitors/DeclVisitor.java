@@ -70,7 +70,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return false;
     }
 
-    private void checkOverloading(List<MethodInfo> methods) throws Exception {
+    private void checkOverloading(List<MethodInfo> methods, String className) throws Exception {
         // for all pairs with id := name
         for(int i = 0; i < methods.size(); ++i){
             for(int j = i+1; j < methods.size(); ++j){
@@ -79,8 +79,8 @@ class DeclVisitor extends GJDepthFirst<String, String>{
                 if(m1.getNumParams() != m2.getNumParams()) continue;
 
                 if(!checkTypes(m1.getParams(), m2.getParams()))
-                    throw new Exception(String.format("Invalid overload between %s and %s",
-                                                      m1.getRetId().getName(), m2.getRetId().getName()));
+                    throw new Exception(String.format("Invalid overload -> %s.%s",
+                                                      className, m1.getRetId().getName()));
             }
         }
     }
@@ -98,9 +98,9 @@ class DeclVisitor extends GJDepthFirst<String, String>{
                 for(int j = 0; j < m2.size(); ++j){
                     if(m1.get(i).getNumParams() != m2.get(j).getNumParams()) continue;
                     if(!checkTypes(m1.get(i).getParams(), m2.get(j).getParams()))
-                        throw new Exception(String.format("Invalid overload between %s and %s",
-                                                        m1.get(i).getRetId().getName(),
-                                                        m2.get(j).getRetId().getName()));
+                        throw new Exception(String.format("Invalid overload between %s.%s and %s.%s",
+                                                        className, m1.get(i).getRetId().getName(),
+                                                        currSuperName, m2.get(j).getRetId().getName()));
                 }
             }
         }
@@ -118,7 +118,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
             for(Map.Entry<String, List<MethodInfo>> meth : methods.entrySet()){
                 List<MethodInfo> sameClass = meth.getValue(); // same class methods with id := name
                 // same class overloading
-                checkOverloading(sameClass);
+                checkOverloading(sameClass, cl.getKey());
 
                 // super class overloading/overriding
                 checkOverloadingSuperClass(sameClass, cl.getKey());
@@ -292,7 +292,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
             String methRetType = methI.getRetId().getType();
             // class: int_foo_int_boolean, super: boolean_foo_int_boolean
             if(superMethRetType != null && !methRetType.equals(superMethRetType)){
-                    throw new Exception(String.format("Override return types don't match in class %s (%s-%s)",
+                    throw new Exception(String.format("Override return types don't match -> class %s (%s-%s)",
                                                     className, methRetType, superMethRetType));
             }else if(superMethRetType != null){ // overriden method, skip overload check for this method.
                 isOverridden = true;

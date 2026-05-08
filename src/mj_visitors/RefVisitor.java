@@ -12,19 +12,19 @@ class RefVisitor extends GJDepthFirst<String, String>{
     }
 
     // find nodetoken to get error coordinates
-    public NodeToken tok(Node n){
+    public NodeToken getToken(Node n){
         if(n instanceof NodeToken){
             return (NodeToken) n;
         }
 
         if(n instanceof NodeChoice){
-            return tok(((NodeChoice) n).choice);
+            return getToken(((NodeChoice) n).choice);
         }
 
         try{
             java.lang.reflect.Field f = n.getClass().getField("f0");
             Node child = (Node) f.get(n);
-            return tok(child);
+            return getToken(child);
         }catch(Exception e){
             return null;
         }
@@ -209,7 +209,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String expr = n.f2.accept(this, argu);
         if(!subtype(expr, id))
             throw new Exception(String.format("Assignment type mismatch at %s:%s -> lval:%s, rval:%s",
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn, id, expr));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn, id, expr));
 
         return null;
     }
@@ -229,15 +229,15 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
         if(!idType.equals("int[]"))
             throw new Exception(String.format("Invalid lvalue type at %s:%s -> %s",
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn, idType));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn, idType));
 
         if(!indxType.equals("int"))
             throw new Exception(String.format("Array size must have integral type at %s:%s",
-                                              tok(n.f2).beginLine, tok(n.f2).beginColumn));
+                                              getToken(n.f2).beginLine, getToken(n.f2).beginColumn));
 
         if(!exprType.equals("int"))
             throw new Exception(String.format("Invalid rvalue type at %s:%s -> %s",
-                                tok(n.f5).beginLine, tok(n.f5).beginColumn, exprType));
+                                getToken(n.f5).beginLine, getToken(n.f5).beginColumn, exprType));
 
         return null;
     }
@@ -254,7 +254,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String exprType = n.f2.accept(this, argu);
         if(!exprType.equals("boolean"))
             throw new Exception(String.format("Condition in if statement must be of type boolean at %s:%s",
-                                              tok(n.f2).beginLine, tok(n.f2).beginColumn));
+                                              getToken(n.f2).beginLine, getToken(n.f2).beginColumn));
 
         n.f4.accept(this, argu);
         n.f6.accept(this, argu);
@@ -272,7 +272,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String exprType = n.f2.accept(this, argu);
         if(!exprType.equals("boolean"))
             throw new Exception(String.format("Condition in while statement must be of type boolean at %s:%s",
-                                              tok(n.f2).beginLine, tok(n.f2).beginColumn));
+                                              getToken(n.f2).beginLine, getToken(n.f2).beginColumn));
 
         n.f4.accept(this, argu);
 
@@ -299,10 +299,10 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String type2 = n.f2.accept(this, argu);
         if(!type1.equals("boolean"))
             throw new Exception(String.format("Invalid type in (&&) expression at %s:%s -> %s",
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn, type1));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn, type1));
         if(!type2.equals("boolean"))
             throw new Exception(String.format("Invalid type in (&&) expression at %s:%s -> %s",
-                                              tok(n.f2).beginLine, tok(n.f2).beginColumn, type2));
+                                              getToken(n.f2).beginLine, getToken(n.f2).beginColumn, type2));
 
         return "boolean";
     }
@@ -316,10 +316,10 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String type2 = n.f2.accept(this, argu);
         if(!type1.equals("int"))
             throw new Exception(String.format("Invalid type in (<) expression at %s:%s -> %s",
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn, type1));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn, type1));
         if(!type2.equals("int"))
             throw new Exception(String.format("Invalid type in (<) expression at %s:%s -> %s",
-                                              tok(n.f2).beginLine, tok(n.f2).beginColumn, type2));
+                                              getToken(n.f2).beginLine, getToken(n.f2).beginColumn, type2));
 
         return "boolean";
     }
@@ -333,10 +333,10 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String type2 = n.f2.accept(this, argu);
         if(!type1.equals("int"))
             throw new Exception(String.format("Invalid type in (+) expression at %s:%s -> %s",
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn, type1));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn, type1));
         if(!type2.equals("int"))
             throw new Exception(String.format("Invalid type in (+) expression -> %s",
-                                              tok(n.f2).beginLine, tok(n.f2).beginColumn, type2));
+                                              getToken(n.f2).beginLine, getToken(n.f2).beginColumn, type2));
 
         return "int";
     }
@@ -350,10 +350,10 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String type2 = n.f2.accept(this, argu);
         if(!type1.equals("int"))
             throw new Exception(String.format("Invalid type in (-) expression at %s:%s -> %s",
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn, type1));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn, type1));
         if(!type2.equals("int"))
             throw new Exception(String.format("Invalid type in (-) expression at %s:%s -> %s",
-                                              tok(n.f2).beginLine, tok(n.f2).beginColumn, type2));
+                                              getToken(n.f2).beginLine, getToken(n.f2).beginColumn, type2));
 
         return "int";
     }
@@ -367,10 +367,10 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String type2 = n.f2.accept(this, argu);
         if(!type1.equals("int"))
             throw new Exception(String.format("Invalid type in (*) expression at %s:%s -> %s",
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn, type1));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn, type1));
         if(!type2.equals("int"))
             throw new Exception(String.format("Invalid type in (*) expression at %s:%s -> %s",
-                                              tok(n.f2).beginLine, tok(n.f2).beginColumn, type2));
+                                              getToken(n.f2).beginLine, getToken(n.f2).beginColumn, type2));
 
         return "int";
     }
@@ -385,10 +385,10 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String type2 = n.f2.accept(this, argu);
         if(!type1.equals("int[]"))
             throw new Exception(String.format("Invalid type in array lookup expression at %s:%s -> %s",
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn, type1));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn, type1));
         if(!type2.equals("int"))
             throw new Exception(String.format("Invalid type in array index at %s:%s -> %s",
-                                              tok(n.f2).beginLine, tok(n.f2).beginColumn, type2));
+                                              getToken(n.f2).beginLine, getToken(n.f2).beginColumn, type2));
 
         return "int";
     }
@@ -401,7 +401,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String type1 = n.f0.accept(this, argu);
         if(!type1.equals("int[]"))
             throw new Exception(String.format(".length is not supported for type %s at %s:%s", type1,
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn));
 
         return "int";
     }
@@ -517,10 +517,10 @@ class RefVisitor extends GJDepthFirst<String, String>{
         methN = (idx == -1) ? methN : methN.substring(0, idx);
         if(methN.equals("null"))
             throw new Exception(String.format("Undefined identifier %s in %s at %s:%s", n.f0.tokenImage, classN,
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn));
         else
             throw new Exception(String.format("Undefined identifier %s in %s.%s at %s:%s", n.f0.tokenImage, classN, methN,
-                                              tok(n.f0).beginLine, tok(n.f0).beginColumn));
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn));
     }
 
     @Override
@@ -548,7 +548,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String type = n.f3.accept(this, argu);
         if(!type.equals("int"))
             throw new Exception(String.format("Array size must have integral type at %s:%s",
-                                tok(n.f3).beginLine, tok(n.f3).beginColumn));
+                                getToken(n.f3).beginLine, getToken(n.f3).beginColumn));
 
         return "int[]";
     }
@@ -563,7 +563,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
         ClassInfo classI = symbt.getClass(className);
         if(classI == null)
             throw new Exception(String.format("Class %s isn't defined at %s:%s", className,
-                                              tok(n.f1).beginLine, tok(n.f1).beginColumn));
+                                              getToken(n.f1).beginLine, getToken(n.f1).beginColumn));
 
 
         return classI.getName();
@@ -576,7 +576,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String type = n.f1.accept(this, argu);
         if(!type.equals("boolean"))
             throw new Exception(String.format("Invalid not expression type at %s:%s -> %s",
-                                              tok(n.f1).beginLine, tok(n.f1).beginColumn, type));
+                                              getToken(n.f1).beginLine, getToken(n.f1).beginColumn, type));
 
         return "boolean";
     }

@@ -1,7 +1,8 @@
 import syntaxtree.*;
 import symboltable.*;
-import java.util.*;
 import visitor.GJDepthFirst;
+import java.util.List;
+import java.util.Map;
 
 class DeclVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;

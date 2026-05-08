@@ -1,7 +1,7 @@
 import syntaxtree.*;
 import symboltable.*;
 import visitor.GJDepthFirst;
-import java.util.*;
+import java.util.List;
 
 class RefVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;

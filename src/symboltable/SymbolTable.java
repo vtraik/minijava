@@ -26,12 +26,6 @@ public class SymbolTable {
         if(classes.containsKey(class_obj.getName()))
             throw new Exception(String.format("Duplicate class %s found in file.", class_obj.getName()));
 
-        ClassInfo superClass = class_obj.getSuper();
-        if(superClass != null){
-            if(!classes.containsKey(superClass.getName()))
-                throw new Exception(String.format("Class %s not defined", superClass));
-        }
-
         classes.put(class_obj.getName(), class_obj);
     }
 

@@ -109,7 +109,6 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
     private void checkOverloadingViolations() throws Exception {
         // traverse symbol table:
-        // - check override errors (intra class, iner class covered by addMethod)
         // - check overloading errors
         // - calc method offsets
 
@@ -206,6 +205,10 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String className = n.f1.accept(this, null);
         String superClassName = n.f3.accept(this, null);
         ClassInfo superClass = symbt.getClass(superClassName); // either: superclass | null
+
+        if(superClass == null)
+            throw new Exception(String.format("Class %s not defined", superClassName));
+
         int currFieldOffs = superClass.getFieldOffset();
         int currMethOffs = superClass.getMethOffset();
         ClassInfo classI = new ClassInfo(superClass, className, currFieldOffs, currMethOffs);

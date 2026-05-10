@@ -3,12 +3,25 @@ import symboltable.*;
 import visitor.GJDepthFirst;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 class DeclVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
+    private Set<String> undefinedTypes = new HashSet<String>();
 
     DeclVisitor(SymbolTable s){
         symbt = s;
+    }
+
+    private void updateUndefTypes(String type){
+        if(type.equals("int") || type.equals("boolean") ||
+           type.equals("int[]")){
+            return;
+        }
+        if(symbt.getClass(type) == null){
+            undefinedTypes.add(type);
+        }
     }
 
     /*
@@ -127,6 +140,25 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
     }
 
+
+    /**
+    * f0 -> MainClass()
+    * f1 -> ( TypeDeclaration() )*
+    * f2 -> <EOF>
+    */
+    @Override
+    public String visit(Goal n, String argu) throws Exception {
+        n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+
+        if(!undefinedTypes.isEmpty())
+            throw new Exception(String.format("Class %s isn't defined", undefinedTypes.iterator().next()));
+
+        checkOverloadingViolations();
+        n.f2.accept(this, argu);
+        return null;
+    }
+
     /**
      * f0 -> "class"
      * f1 -> Identifier()
@@ -163,7 +195,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         String scope = String.format("%s|main_String[]", className);
         n.f14.accept(this, scope);
-        checkOverloadingViolations();
+
         return null;
     }
 
@@ -181,6 +213,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         ClassInfo classI = new ClassInfo(null, className, 0, 0);
 
+        undefinedTypes.remove(className); // remove the undefined type that is now being defined (if of course it is)
         symbt.addClass(classI);
 
         String scope = String.format("%s|null", className);
@@ -213,6 +246,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         int currMethOffs = superClass.getMethOffset();
         ClassInfo classI = new ClassInfo(superClass, className, currFieldOffs, currMethOffs);
 
+        undefinedTypes.remove(className);
         symbt.addClass(classI);
 
         String scope = String.format("%s|null", className);
@@ -236,6 +270,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String var = n.f1.accept(this, argu);
         Symbol newVar = new Symbol(var, type);
 
+        updateUndefTypes(type);
         if(methName.equals("null")){ // class scope => field
             symbt.getClass(className).addField(newVar);
         }else{                  // method scope => local var
@@ -277,6 +312,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
             String ptype = getFirstEl(args[i]);
             String name = getSecEl(args[i]);
             mangName += "_" + ptype;
+            updateUndefTypes(ptype);
             Symbol param = new Symbol(name, ptype);
             methI.addParam(param);
         }

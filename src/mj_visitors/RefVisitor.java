@@ -465,8 +465,8 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
         ClassInfo classI = symbt.getClass(lexprType);
         if(classI == null){
-            throw new Exception(String.format("Class %s isn't defined at %s:%s",
-                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn, classI.getName()));
+            throw new Exception(String.format("Method call on invalid type %s at %s:%s",
+                                              lexprType, getToken(n.f0).beginLine, getToken(n.f0).beginColumn));
         }
 
 
@@ -612,6 +612,5 @@ class RefVisitor extends GJDepthFirst<String, String>{
     public String visit(BracketExpression n, String argu) throws Exception {
         return n.f1.accept(this, argu);
     }
-
 
 }

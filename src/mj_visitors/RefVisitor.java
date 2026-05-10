@@ -2,6 +2,7 @@ import syntaxtree.*;
 import symboltable.*;
 import visitor.GJDepthFirst;
 import java.util.List;
+import java.util.Map;
 
 class RefVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
@@ -66,17 +67,16 @@ class RefVisitor extends GJDepthFirst<String, String>{
         if(type1.equals(type2) && type1 != null)
             return true;
 
-        ClassInfo superClass = symbt.getClass(type2).getSuper();
+        ClassInfo superClass = symbt.getClass(type1).getSuper();
         if(superClass == null)
             return false;
         else
-            return subtyperec(type1, superClass.getName());
+            return subtyperec(superClass.getName(), type2);
     }
 
     private String findVarType(String id, String scope) throws Exception {
         String className = getFirstEl(scope);
         String methMangName = getSecEl(scope);
-
         // check Method scope
         if(!methMangName.equals("null")){
             MethodInfo meth = symbt.getClass(className).getMethodMang(methMangName);
@@ -91,12 +91,53 @@ class RefVisitor extends GJDepthFirst<String, String>{
             return s.getType();
 
         // find in super class
-        ClassInfo superClassName = symbt.getSuper(className);
+        ClassInfo superClass = symbt.getSuper(className);
 
-        if(superClassName == null) // not found
+        if(superClass == null) // not found
             return null;
         else
-            return findVarType(id, superClassName.getName() + "|" + methMangName);
+            return findVarType(id, superClass.getName() + "|null");
+    }
+
+    private String findMethodRetType(ClassInfo classI, String name, String[] args) throws Exception {
+        if(classI == null) // no other class in the hierarchy
+            return null;
+
+        List<MethodInfo> classMeths = classI.getMethod(name);
+        if(classMeths == null) // no method with same name in this class
+            return findMethodRetType(classI.getSuper(), name, args);
+
+        MethodInfo compMeth = getClassCompMethod(classMeths, args);
+
+        if(compMeth != null)
+            return compMeth.getRetId().getType();
+
+        return findMethodRetType(classI.getSuper(), name, args);
+
+    }
+
+    private MethodInfo getClassCompMethod(List<MethodInfo> classMeths, String[] args) throws Exception {
+        int argMatched = -1;
+        for(int i = 0; i < classMeths.size(); ++i){
+            MethodInfo meth = classMeths.get(i);
+            int numParams = meth.getNumParams();
+            List<Symbol> params = meth.getParams();
+
+            if(args.length != numParams) continue;
+
+            argMatched = 0;
+            for(int j = 0; j < numParams; ++j){
+                String methType = params.get(j).getType();
+                if(!subtype(args[j], methType))
+                    break;
+                ++argMatched;
+            }
+
+            if(argMatched == numParams){
+                return meth; // found a compatible method
+            }
+        }
+        return null;
     }
 
     // f0  -> "class"
@@ -178,8 +219,10 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
         String expRetType = n.f10.accept(this, className + "|" + methName);
         if(!subtype(expRetType, methRetType))
-            throw new Exception(String.format("Return type mismatch in %s.%s -> expected <%s>, got <%s>",
-                                              className, method.getRetId().getName(), methRetType, expRetType));
+            throw new Exception(String.format("Return type mismatch in %s.%s at %s:%s -> expected <%s>, got <%s>",
+                                              className, method.getRetId().getName(),
+                                              getToken(n.f10).beginLine, getToken(n.f10).beginColumn,
+                                              methRetType, expRetType));
 
         return null;
     }
@@ -207,9 +250,12 @@ class RefVisitor extends GJDepthFirst<String, String>{
     public String visit(AssignmentStatement n, String argu) throws Exception {
         String id = n.f0.accept(this, argu);
         String expr = n.f2.accept(this, argu);
-        if(!subtype(expr, id))
+        if(!subtype(expr, id)){
+            System.out.println(expr);
+            System.out.println(id);
             throw new Exception(String.format("Assignment type mismatch at %s:%s -> lval:%s, rval:%s",
                                               getToken(n.f0).beginLine, getToken(n.f0).beginColumn, id, expr));
+        }
 
         return null;
     }
@@ -335,7 +381,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
             throw new Exception(String.format("Invalid type in (+) expression at %s:%s -> %s",
                                               getToken(n.f0).beginLine, getToken(n.f0).beginColumn, type1));
         if(!type2.equals("int"))
-            throw new Exception(String.format("Invalid type in (+) expression -> %s",
+            throw new Exception(String.format("Invalid type in (+) expression at %s:%s -> %s",
                                               getToken(n.f2).beginLine, getToken(n.f2).beginColumn, type2));
 
         return "int";
@@ -414,48 +460,26 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f5 -> ")"
     @Override
     public String visit(MessageSend n, String argu) throws Exception {
-        String exprType = n.f0.accept(this, argu);
+        String lexprType = n.f0.accept(this, argu);
         String id = n.f2.f0.tokenImage;
-        String retType = null;
 
-        ClassInfo classI = symbt.getClass(exprType);
-        if(classI == null)
-            throw new Exception(String.format("Class %s isn't defined", classI.getName()));
-
-        List<MethodInfo> classMeths = classI.getMethod(id);
-        if(classMeths == null)
-            throw new Exception(String.format("Method %s isn't defined", id));
-
-        String[] expressions = n.f4.present() ? n.f4.accept(this, argu).split(",") : new String[0];
-
-        int argMatched = -1;
-        for(int i = 0; i < classMeths.size(); ++i){
-            MethodInfo meth = classMeths.get(i);
-            int numParams = meth.getNumParams();
-            List<Symbol> params = meth.getParams();
-
-            if(expressions.length != numParams) continue;
-
-            argMatched = 0;
-            for(int j = 0; j < numParams; ++j){
-                String methType = params.get(j).getType();
-                if(!subtype(expressions[j], methType))
-                    break;
-                ++argMatched;
-            }
-
-            if(argMatched == numParams){
-                retType = meth.getRetId().getType();
-                break;
-            }
+        ClassInfo classI = symbt.getClass(lexprType);
+        if(classI == null){
+            throw new Exception(String.format("Class %s isn't defined at %s:%s",
+                                              getToken(n.f0).beginLine, getToken(n.f0).beginColumn, classI.getName()));
         }
 
-        if(argMatched != expressions.length){
-            String types = String.join(", ", expressions);
-            throw new Exception(String.format("No matching method found -> %s.%s(%s)",
-                                classI.getName(), id, types));
+
+        String[] rexprTypes = n.f4.present() ? n.f4.accept(this, argu).split(",") : new String[0];
+
+        String retType = findMethodRetType(classI, id, rexprTypes);
+        if(retType == null){
+            String types = String.join(", ", rexprTypes);
+            throw new Exception(String.format("No compatible method found at %s:%s -> %s.%s(%s)",
+                                getToken(n.f2).beginLine, getToken(n.f2).beginColumn, classI.getName(), id, types));
         }
 
+        // found a comp meth return its type
         return retType;
     }
 
@@ -526,7 +550,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
     @Override
     public String visit(Type n, String argu) throws Exception {
         // decl id (Type Identifier) has different action from ref id (Identifier)
-        if(n.f0.which == 3) // in declaration => should return just the id and not my override
+        if(n.f0.which == 3) // in declaration => should return just the id token and not search for var's (as my Identifier visitor does)
             return ((Identifier) n.f0.choice).f0.tokenImage;
         else
            return super.visit(n, argu);

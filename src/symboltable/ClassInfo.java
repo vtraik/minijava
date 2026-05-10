@@ -110,6 +110,7 @@ public class ClassInfo {
                         System.out.println(name + "." + meth.getValue().getRetId().getName() + " : " + offs);
                 }
                 System.out.println();
+                break;
             case 1:
                 for(Map.Entry<String, Symbol> field : fields.entrySet()){
                     System.out.println(name + "." + field.getKey() + " : " + field.getValue().getOffset());

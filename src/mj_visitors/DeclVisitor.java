@@ -85,12 +85,14 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     }
 
     private void checkOverloading(List<MethodInfo> methods, String className) throws Exception {
+        // System.out.println("methods " + methods);
         // for all pairs with id := name
         for(int i = 0; i < methods.size(); ++i){
             for(int j = i+1; j < methods.size(); ++j){
                 MethodInfo m1 = methods.get(i);
                 MethodInfo m2 = methods.get(j);
-                if(m1.getNumParams() != m2.getNumParams()) continue;
+                int diff = m1.getNumParams() - m2.getNumParams();
+                if(diff != 0 || m1.getNumParams() == 0 || m2.getNumParams() == 0) continue;
 
                 if(!checkTypes(m1.getParams(), m2.getParams()))
                     throw new Exception(String.format("Invalid overload -> %s.%s",
@@ -102,6 +104,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     private void checkOverloadingSuperClass(List<MethodInfo> meth, String className) throws Exception {
         ClassInfo superClass;
         String currSuperName = className;
+        // System.out.println("meth " + meth);
         while((superClass = symbt.getSuper(currSuperName)) != null){
             currSuperName = superClass.getName();
             for(int i = 0; i < meth.size(); ++i){
@@ -109,8 +112,12 @@ class DeclVisitor extends GJDepthFirst<String, String>{
                 // check overload
                 List<MethodInfo> m1 = meth;
                 List<MethodInfo> m2 = superClass.getMethod(currSuperName);
+
+                if(m2 == null) continue;
+
                 for(int j = 0; j < m2.size(); ++j){
-                    if(m1.get(i).getNumParams() != m2.get(j).getNumParams()) continue;
+                    int diff = m1.get(i).getNumParams() - m2.get(j).getNumParams();
+                    if(diff != 0 || m1.get(i).getNumParams() == 0 || m2.get(j).getNumParams() == 0) continue;
                     if(!checkTypes(m1.get(i).getParams(), m2.get(j).getParams()))
                         throw new Exception(String.format("Invalid overload between %s.%s and %s.%s",
                                                         className, m1.get(i).getRetId().getName(),
@@ -128,6 +135,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         Map<String, ClassInfo> classes = symbt.getClasses();
         for(Map.Entry<String, ClassInfo> cl : classes.entrySet()){
             Map<String, List<MethodInfo>> methods = cl.getValue().getMethods();
+            // System.out.println("class: " + cl.getKey() );
             for(Map.Entry<String, List<MethodInfo>> meth : methods.entrySet()){
                 List<MethodInfo> sameClass = meth.getValue(); // same class methods with id := name
                 // same class overloading

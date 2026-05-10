@@ -35,7 +35,7 @@ public class Main {
                 System.out.println("Program is semantically correct.");
 
                 // print offsets
-                st.printOffsets();
+                st.printOffsets(1);
             }
             catch(Exception ex){
                 System.err.println("Error: " + ex.getMessage());

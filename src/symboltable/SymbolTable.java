@@ -33,8 +33,8 @@ public class SymbolTable {
         zeroIndxMethods.add(numMeth);
     }
 
-    public void printOffsets(){
+    public void printOffsets(int choice){
         for(Map.Entry<String, ClassInfo> ce : classes.entrySet())
-            ce.getValue().printOffsets(1);
+            ce.getValue().printOffsets(choice);
     }
 }

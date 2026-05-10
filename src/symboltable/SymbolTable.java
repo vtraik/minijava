@@ -35,6 +35,6 @@ public class SymbolTable {
 
     public void printOffsets(){
         for(Map.Entry<String, ClassInfo> ce : classes.entrySet())
-            ce.getValue().printOffsets();
+            ce.getValue().printOffsets(1);
     }
 }

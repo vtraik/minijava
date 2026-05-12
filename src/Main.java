@@ -8,7 +8,7 @@ import symboltable.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        if(args.length != 1){
+        if(args.length < 1){
             System.err.println("Usage: java Main <File1> <File2> ... <FileN>");
             System.exit(1);
         }
@@ -16,6 +16,8 @@ public class Main {
         FileInputStream fis = null;
         for(int i = 0; i < args.length; ++i){
             try{
+                System.out.println();
+
                 fis = new FileInputStream(args[i]);
                 MiniJavaParser parser = new MiniJavaParser(fis);
 
@@ -36,6 +38,8 @@ public class Main {
 
                 // print offsets
                 st.printOffsets(1);
+
+                System.out.println();
             }
             catch(Exception ex){
                 System.err.println("Error: " + ex.getMessage());

@@ -118,7 +118,7 @@ public class ClassInfo {
                 for(Map.Entry<String, MethodInfo> meth : methodsSignatures.entrySet()){
                     int offs = meth.getValue().getOffset();
                     if(offs != -1)
-                        System.out.println(name + "." + meth.getValue().getRetId().getName() + " : " + offs);
+                        System.out.println(name + "." + meth.getKey() + " : " + offs);
                 }
         }
     }

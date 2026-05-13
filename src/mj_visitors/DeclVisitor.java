@@ -43,19 +43,12 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     }
 
     private boolean subtype(String type1, String type2) throws Exception {
-        if(type1.equals("int"))
-            return type2.equals("int");
-        if(type1.equals("boolean"))
-            return type2.equals("boolean");
-        if(type1.equals("int[]"))
-            return type2.equals("int[]");
-
-        ClassInfo classType1 = symbt.getClass(type1);
-        ClassInfo classType2 = symbt.getClass(type2);
-        if(classType1 == null)
-            throw new Exception(String.format("Undefined type %s", type1));
-        else if(classType2 == null)
-            throw new Exception(String.format("Undefined type %s", type2));
+        if(type2.equals("int"))
+            return type1.equals("int");
+        if(type2.equals("boolean"))
+            return type1.equals("boolean");
+        if(type2.equals("int[]"))
+            return type1.equals("int[]");
 
         if(type1.equals(type2))
             return true;
@@ -64,7 +57,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     }
 
     private boolean subtyperec(String type1, String type2) {
-        if(type1.equals(type2) && type1 != null)
+        if(type1.equals(type2))
             return true;
 
         ClassInfo superClass = symbt.getClass(type2).getSuper();
@@ -85,7 +78,6 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     }
 
     private void checkOverloading(List<MethodInfo> methods, String className) throws Exception {
-        // System.out.println("methods " + methods);
         // for all pairs with id := name
         for(int i = 0; i < methods.size(); ++i){
             for(int j = i+1; j < methods.size(); ++j){
@@ -101,18 +93,19 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         }
     }
 
-    private void checkOverloadingSuperClass(List<MethodInfo> meth, String className) throws Exception {
+    private void checkOverloadingSuperClass(List<MethodInfo> meth, String className, String methName) throws Exception {
         ClassInfo superClass;
         String currSuperName = className;
-        // System.out.println("meth " + meth);
         while((superClass = symbt.getSuper(currSuperName)) != null){
             currSuperName = superClass.getName();
-            for(int i = 0; i < meth.size(); ++i){
-                if(meth.get(i).getOverridden()) continue; // dont check overridden methods
-                // check overload
-                List<MethodInfo> m1 = meth;
-                List<MethodInfo> m2 = superClass.getMethod(currSuperName);
 
+            List<MethodInfo> m1 = meth;
+            List<MethodInfo> m2 = superClass.getMethod(methName);
+
+            for(int i = 0; i < m1.size(); ++i){
+                if(m1.get(i).getOverridden()) continue; // dont check overridden methods
+
+                // check overload
                 if(m2 == null) continue;
 
                 for(int j = 0; j < m2.size(); ++j){
@@ -120,8 +113,8 @@ class DeclVisitor extends GJDepthFirst<String, String>{
                     if(diff != 0 || m1.get(i).getNumParams() == 0 || m2.get(j).getNumParams() == 0) continue;
                     if(!checkTypes(m1.get(i).getParams(), m2.get(j).getParams()))
                         throw new Exception(String.format("Invalid overload between %s.%s and %s.%s",
-                                                        className, m1.get(i).getRetId().getName(),
-                                                        currSuperName, m2.get(j).getRetId().getName()));
+                                                        className, m1.get(i).getMangName(),
+                                                        currSuperName, m2.get(j).getMangName()));
                 }
             }
         }
@@ -131,18 +124,16 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         // traverse symbol table:
         // - check overloading errors
         // - calc method offsets
-
         Map<String, ClassInfo> classes = symbt.getClasses();
         for(Map.Entry<String, ClassInfo> cl : classes.entrySet()){
             Map<String, List<MethodInfo>> methods = cl.getValue().getMethods();
-            // System.out.println("class: " + cl.getKey() );
             for(Map.Entry<String, List<MethodInfo>> meth : methods.entrySet()){
                 List<MethodInfo> sameClass = meth.getValue(); // same class methods with id := name
                 // same class overloading
                 checkOverloading(sameClass, cl.getKey());
 
                 // super class overloading/overriding
-                checkOverloadingSuperClass(sameClass, cl.getKey());
+                checkOverloadingSuperClass(sameClass, cl.getKey(), meth.getKey());
             }
         }
 

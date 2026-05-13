@@ -43,19 +43,12 @@ class RefVisitor extends GJDepthFirst<String, String>{
     }
 
     private boolean subtype(String type1, String type2) throws Exception {
-        if(type1.equals("int"))
-            return type2.equals("int");
-        if(type1.equals("boolean"))
-            return type2.equals("boolean");
-        if(type1.equals("int[]"))
-            return type2.equals("int[]");
-
-        ClassInfo classType1 = symbt.getClass(type1);
-        ClassInfo classType2 = symbt.getClass(type2);
-        if(classType1 == null)
-            throw new Exception(String.format("Undefined type %s", type1));
-        else if(classType2 == null)
-            throw new Exception(String.format("Undefined type %s", type2));
+        if(type2.equals("int"))
+            return type1.equals("int");
+        if(type2.equals("boolean"))
+            return type1.equals("boolean");
+        if(type2.equals("int[]"))
+            return type1.equals("int[]");
 
         if(type1.equals(type2))
             return true;
@@ -251,8 +244,6 @@ class RefVisitor extends GJDepthFirst<String, String>{
         String id = n.f0.accept(this, argu);
         String expr = n.f2.accept(this, argu);
         if(!subtype(expr, id)){
-            System.out.println(expr);
-            System.out.println(id);
             throw new Exception(String.format("Assignment type mismatch at %s:%s -> lval:%s, rval:%s",
                                               getToken(n.f0).beginLine, getToken(n.f0).beginColumn, id, expr));
         }

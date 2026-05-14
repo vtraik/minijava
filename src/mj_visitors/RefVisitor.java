@@ -322,8 +322,11 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f3 -> ")"
     // f4 -> ";"
     @Override
-    public String visit(PrintStatement n, String argu) throws Exception { // what types are allowed ??
-        n.f2.accept(this, argu);
+    public String visit(PrintStatement n, String argu) throws Exception { 
+        String type = n.f2.accept(this, argu);
+        if(!type.equals("int"))
+            throw new Exception(String.format("Print's argument should be of type int at %s:%s",
+                                getToken(n.f2).beginLine, getToken(n.f2).beginColumn));
         return null;
     }
 

@@ -541,6 +541,12 @@ class RefVisitor extends GJDepthFirst<String, String>{
                                               getToken(n.f0).beginLine, getToken(n.f0).beginColumn));
     }
 
+
+     
+    //   f0 -> ArrayType()
+    //       | BooleanType()
+    //       | IntegerType()
+    //       | Identifier()
     @Override
     public String visit(Type n, String argu) throws Exception {
         // decl id (Type Identifier) has different action from ref id (Identifier)

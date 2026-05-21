@@ -6,7 +6,7 @@ public class ClassInfo {
     private String name;
     private int currFieldOffs;
     private int currMethOffs;
-    // foo_int_boolean, retType
+    // foo_int_boolean, MethodInfo
     Map<String, MethodInfo> methodsSignatures = new LinkedHashMap<String, MethodInfo>();
     // foo, MethodInfo
     Map<String, List<MethodInfo>> methods = new LinkedHashMap<>();

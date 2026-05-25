@@ -36,7 +36,7 @@ public class Main {
 
                 System.out.println("Program is semantically correct.");
 
-                // print offsets
+                // print offsets -> 1: + param types, 0: default
                 st.printOffsets(1);
 
                 System.out.println();

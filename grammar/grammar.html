@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniJava BNF Grammar - Eye-Strain Friendly</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #d8dee9; 
+            background-color: #2e3440; 
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        h1 {
+            color: #88c0d0; 
+            border-bottom: 1px solid #4c566a;
+            padding-bottom: 10px;
+            font-weight: 500;
+        }
+        .grammar-container {
+            background-color: #242933; 
+            border: 1px solid #3b4252;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            
+            /* Modern Grid Layout for flawless alignment */
+            display: grid;
+            grid-template-columns: minmax(auto, max-content) min-content 1fr;
+            gap: 4px 16px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 14px;
+        }
+        
+        /* Grid Column Rules */
+        .grammar-row {
+            display: content; /* Allows children to participate in the parent grid */
+        }
+        .lhs {
+            grid-column: 1;
+            text-align: right;
+        }
+        .op {
+            grid-column: 2;
+            color: #81a1c1;
+            font-weight: bold;
+        }
+        .rhs {
+            grid-column: 3;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        /* Highlighting Styles */
+        .nt {
+            color: #a3be8c;
+            font-weight: 600;
+        }
+        .str {
+            color: #d08770;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>MiniJava BNF Grammar</h1>
+    
+    <div class="grammar-container" id="grammar">Goal ::= MainClass ( TypeDeclaration )* &lt;EOF&gt;
+
+MainClass ::= "class" Identifier "{" "public" "static" "void" "main" "(" "String" "[" "]" Identifier ")" "{" ( VarDeclaration )* ( Statement )* "}" "}"
+
+TypeDeclaration ::= ClassDeclaration 
+                  | ClassExtendsDeclaration
+
+ClassDeclaration ::= "class" Identifier "{" ( VarDeclaration )* ( MethodDeclaration )* "}"
+
+ClassExtendsDeclaration ::= "class" Identifier "extends" Identifier "{" ( VarDeclaration )* ( MethodDeclaration )* "}"
+
+VarDeclaration ::= Type Identifier ";"
+
+MethodDeclaration ::= "public" Type Identifier "(" ( FormalParameterList )? ")" "{" ( VarDeclaration )* ( Statement )* "return" Expression ";" "}"
+
+FormalParameterList ::= FormalParameter FormalParameterTail
+
+FormalParameter ::= Type Identifier
+
+FormalParameterTail ::= ( FormalParameterTerm )*
+
+FormalParameterTerm ::= "," FormalParameter
+
+Type ::= ArrayType 
+       | BooleanType 
+       | IntegerType 
+       | Identifier
+
+ArrayType ::= "int" "[" "]"
+
+BooleanType ::= "boolean"
+
+IntegerType ::= "int"
+
+Statement ::= Block 
+            | AssignmentStatement 
+            | ArrayAssignmentStatement 
+            | IfStatement 
+            | WhileStatement 
+            | PrintStatement
+
+Block ::= "{" ( Statement )* "}"
+
+AssignmentStatement ::= Identifier "=" Expression ";"
+
+ArrayAssignmentStatement ::= Identifier "[" Expression "]" "=" Expression ";"
+
+IfStatement ::= "if" "(" Expression ")" Statement "else" Statement
+
+WhileStatement ::= "while" "(" Expression ")" Statement
+
+PrintStatement ::= "System.out.println" "(" Expression ")" ";"
+
+Expression ::= AndExpression
+             | CompareExpression
+             | PlusExpression
+             | MinusExpression
+             | TimesExpression
+             | ArrayLookup
+             | ArrayLength
+             | MessageSend
+             | Clause
+
+AndExpression ::= Clause "&&" Clause
+
+CompareExpression ::= PrimaryExpression "&lt;" PrimaryExpression
+
+PlusExpression ::= PrimaryExpression "+" PrimaryExpression
+
+MinusExpression ::= PrimaryExpression "-" PrimaryExpression
+
+TimesExpression ::= PrimaryExpression "*" PrimaryExpression
+
+ArrayLookup ::= PrimaryExpression "[" PrimaryExpression "]"
+
+ArrayLength ::= PrimaryExpression "." "length"
+
+MessageSend ::= PrimaryExpression "." Identifier "(" ( ExpressionList )? ")"
+
+ExpressionList ::= Expression ExpressionTail
+
+ExpressionTail ::= ( ExpressionTerm )*
+
+ExpressionTerm ::= "," Expression
+
+Clause ::= NotExpression 
+         | PrimaryExpression
+
+PrimaryExpression ::= IntegerLiteral
+                    | TrueLiteral
+                    | FalseLiteral
+                    | Identifier
+                    | ThisExpression
+                    | ArrayAllocationExpression
+                    | AllocationExpression
+                    | BracketExpression
+
+IntegerLiteral ::= &lt;INTEGER_LITERAL&gt;
+
+TrueLiteral ::= "true"
+
+FalseLiteral ::= "false"
+
+Identifier ::= &lt;IDENTIFIER&gt;
+
+ThisExpression ::= "this"
+
+ArrayAllocationExpression ::= "new" "int" "[" Expression "]"
+
+AllocationExpression ::= "new" Identifier "(" ")"
+
+NotExpression ::= "!" Clause
+
+BracketExpression ::= "(" Expression ")"</div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const container = document.getElementById("grammar");
+            const rawText = container.innerHTML;
+
+            // 1. Gather all Non-Terminals for regex targeting later
+            const definitionRegex = /^([a-zA-Z_]\w*)\s*::=/gm;
+            const nonTerminals = new Set();
+            let match;
+            while ((match = definitionRegex.exec(rawText)) !== null) {
+                nonTerminals.add(match[1]);
+            }
+            const sortedNTs = Array.from(nonTerminals).sort((a, b) => b.length - a.length);
+
+            // 2. Split text into individual logical rules/lines
+            const rawLines = rawText.split('\n');
+            let finalHTML = '';
+
+            rawLines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) {
+                    // Maintain spacing between rule blocks
+                    finalHTML += '<div style="grid-column: span 3; height: 1em;"></div>';
+                    return;
+                }
+
+                let lhs = '', op = '', rhs = '';
+
+                if (line.includes('::=')) {
+                    const parts = line.split('::=');
+                    lhs = parts[0].trim();
+                    op = '::=';
+                    rhs = parts[1].trim();
+                } else {
+                    // Line extension (e.g., lines starting with '|')
+                    lhs = '';
+                    op = '';
+                    rhs = trimmed;
+                }
+
+                // Apply highlighting tokens to the components
+                if (lhs) {
+                    lhs = `<span class="nt">${lhs}</span>`;
+                }
+                if (rhs) {
+                    // Temporarily wrap literal string quotes safely
+                    const quotes = [];
+                    rhs = rhs.replace(/"[^"\\]*(?:\\.[^"\\]*)*"/g, (m) => {
+                        quotes.push(`<span class="str">${m}</span>`);
+                        return `___QUOTE_PLACEHOLDER_${quotes.length - 1}___`;
+                    });
+
+                    // Highlight Non-Terminals
+                    sortedNTs.forEach(nt => {
+                        const regex = new RegExp(`\\b${nt}\\b`, 'g');
+                        rhs = rhs.replace(regex, `<span class="nt">${nt}</span>`);
+                    });
+
+                    // Restore original literal strings
+                    rhs = rhs.replace(/___QUOTE_PLACEHOLDER_(\d+)___/g, (_, id) => quotes[id]);
+                }
+
+                // Append the structurally organized row
+                finalHTML += `
+                    <div class="lhs">${lhs}</div>
+                    <div class="op">${op}</div>
+                    <div class="rhs">${rhs}</div>
+                `;
+            });
+
+            container.innerHTML = finalHTML;
+        });
+    </script>
+</body>
+</html>

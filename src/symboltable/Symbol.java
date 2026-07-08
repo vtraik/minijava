@@ -1,4 +1,5 @@
 package symboltable;
+
 import java.util.Objects;
 
 public class Symbol {

@@ -1,14 +1,13 @@
+import java.util.*;
 import syntaxtree.*;
-import symboltable.*;
 import visitor.GJDepthFirst;
-import java.util.List;
-import java.util.Map;
+import symboltable.*;
 
 class RefVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
     private int methNumber;
 
-    RefVisitor(SymbolTable s){
+    public RefVisitor(SymbolTable s){
         symbt = s;
     }
 
@@ -322,7 +321,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
     // f3 -> ")"
     // f4 -> ";"
     @Override
-    public String visit(PrintStatement n, String argu) throws Exception { 
+    public String visit(PrintStatement n, String argu) throws Exception {
         String type = n.f2.accept(this, argu);
         if(!type.equals("int"))
             throw new Exception(String.format("Print's argument should be of type int at %s:%s",
@@ -542,7 +541,6 @@ class RefVisitor extends GJDepthFirst<String, String>{
     }
 
 
-     
     //   f0 -> ArrayType()
     //       | BooleanType()
     //       | IntegerType()

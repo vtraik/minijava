@@ -1,16 +1,13 @@
+import java.util.*;
 import syntaxtree.*;
-import symboltable.*;
 import visitor.GJDepthFirst;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.HashSet;
+import symboltable.*;
 
 class DeclVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
     private Set<String> undefinedTypes = new HashSet<String>();
 
-    DeclVisitor(SymbolTable s){
+    public DeclVisitor(SymbolTable s){
         symbt = s;
     }
 
@@ -121,9 +118,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     }
 
     private void checkOverloadingViolations() throws Exception {
-        // traverse symbol table:
-        // - check overloading errors
-        // - calc method offsets
+        // traverse symbol table and check overloading errors
         Map<String, ClassInfo> classes = symbt.getClasses();
         for(Map.Entry<String, ClassInfo> cl : classes.entrySet()){
             Map<String, List<MethodInfo>> methods = cl.getValue().getMethods();
@@ -140,11 +135,10 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     }
 
 
-    /**
-    * f0 -> MainClass()
-    * f1 -> ( TypeDeclaration() )*
-    * f2 -> <EOF>
-    */
+
+    // f0 -> MainClass()
+    // f1 -> ( TypeDeclaration() )*
+    // f2 -> <EOF>
     @Override
     public String visit(Goal n, String argu) throws Exception {
         n.f0.accept(this, argu);
@@ -158,26 +152,25 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return null;
     }
 
-    /**
-     * f0 -> "class"
-     * f1 -> Identifier()
-     * f2 -> "{"
-     * f3 -> "public"
-     * f4 -> "static"
-     * f5 -> "void"
-     * f6 -> "main"
-     * f7 -> "("
-     * f8 -> "String"
-     * f9 -> "["
-     * f10 -> "]"
-     * f11 -> Identifier()
-     * f12 -> ")"
-     * f13 -> "{"
-     * f14 -> ( VarDeclaration() )*
-     * f15 -> ( Statement() )*
-     * f16 -> "}"
-     * f17 -> "}"
-     */
+
+     // f0 -> "class"
+     // f1 -> Identifier()
+     // f2 -> "{"
+     // f3 -> "public"
+     // f4 -> "static"
+     // f5 -> "void"
+     // f6 -> "main"
+     // f7 -> "("
+     // f8 -> "String"
+     // f9 -> "["
+     // f10 -> "]"
+     // f11 -> Identifier()
+     // f12 -> ")"
+     // f13 -> "{"
+     // f14 -> ( VarDeclaration() )*
+     // f15 -> ( Statement() )*
+     // f16 -> "}"
+     // f17 -> "}"
     @Override
     public String visit(MainClass n, String argu) throws Exception {
         String className = n.f1.accept(this, null);
@@ -186,8 +179,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         ClassInfo mainClass = new ClassInfo(null, className, 0, 0);
         Symbol retId = new Symbol("main", "void");
         MethodInfo mainMeth = new MethodInfo(retId, "main_String[]", true); // dont count offset for main
-        Symbol paramType = new Symbol(param, "String[]");
-        mainMeth.addParam(paramType);
+        mainMeth.addParam(new Symbol(param, "String[]"));
         mainClass.addMethod(mainMeth);
 
         symbt.addClass(mainClass);
@@ -198,22 +190,19 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return null;
     }
 
-    /**
-     * f0 -> "class"
-     * f1 -> Identifier()
-     * f2 -> "{"
-     * f3 -> ( VarDeclaration() )*
-     * f4 -> ( MethodDeclaration() )*
-     * f5 -> "}"
-     */
+
+     // f0 -> "class"
+     // f1 -> Identifier()
+     // f2 -> "{"
+     // f3 -> ( VarDeclaration() )*
+     // f4 -> ( MethodDeclaration() )*
+     // f5 -> "}"
     @Override
     public String visit(ClassDeclaration n, String argu) throws Exception {
         String className = n.f1.accept(this, null);
 
-        ClassInfo classI = new ClassInfo(null, className, 0, 0);
-
         undefinedTypes.remove(className); // remove the undefined type that is now being defined (if of course it is)
-        symbt.addClass(classI);
+        symbt.addClass(new ClassInfo(null, className, 0, 0));
 
         String scope = String.format("%s|null", className);
         n.f3.accept(this, scope);
@@ -222,16 +211,15 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return null;
     }
 
-    /**
-     * f0 -> "class"
-     * f1 -> Identifier()
-     * f2 -> "extends"
-     * f3 -> Identifier()
-     * f4 -> "{"
-     * f5 -> ( VarDeclaration() )*
-     * f6 -> ( MethodDeclaration() )*
-     * f7 -> "}"
-     */
+
+     // f0 -> "class"
+     // f1 -> Identifier()
+     // f2 -> "extends"
+     // f3 -> Identifier()
+     // f4 -> "{"
+     // f5 -> ( VarDeclaration() )*
+     // f6 -> ( MethodDeclaration() )*
+     // f7 -> "}"
     @Override
     public String visit(ClassExtendsDeclaration n, String argu) throws Exception {
         String className = n.f1.accept(this, null);
@@ -243,10 +231,9 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         int currFieldOffs = superClass.getFieldOffset();
         int currMethOffs = superClass.getMethOffset();
-        ClassInfo classI = new ClassInfo(superClass, className, currFieldOffs, currMethOffs);
 
         undefinedTypes.remove(className);
-        symbt.addClass(classI);
+        symbt.addClass(new ClassInfo(superClass, className, currFieldOffs, currMethOffs));
 
         String scope = String.format("%s|null", className);
         n.f5.accept(this, scope);
@@ -255,11 +242,9 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return null;
     }
 
-    /**
-    * f0 -> Type()
-    * f1 -> Identifier()
-    * f2 -> ";"
-    */
+    // f0 -> Type()
+    // f1 -> Identifier()
+    // f2 -> ";"
    @Override
    public String visit(VarDeclaration n, String argu) throws Exception {
         String className = getFirstEl(argu);
@@ -279,21 +264,19 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return null;
     }
 
-    /**
-     * f0 -> "public"
-     * f1 -> Type()
-     * f2 -> Identifier()
-     * f3 -> "("
-     * f4 -> ( FormalParameterList() )?
-     * f5 -> ")"
-     * f6 -> "{"
-     * f7 -> ( VarDeclaration() )*
-     * f8 -> ( Statement() )*
-     * f9 -> "return"
-     * f10 -> Expression()
-     * f11 -> ";"
-     * f12 -> "}"
-     */
+     // f0 -> "public"
+     // f1 -> Type()
+     // f2 -> Identifier()
+     // f3 -> "("
+     // f4 -> ( FormalParameterList() )?
+     // f5 -> ")"
+     // f6 -> "{"
+     // f7 -> ( VarDeclaration() )*
+     // f8 -> ( Statement() )*
+     // f9 -> "return"
+     // f10 -> Expression()
+     // f11 -> ";"
+     // f12 -> "}"
     @Override
     public String visit(MethodDeclaration n, String argu) throws Exception {
         // type1|id1,type2|id2,...
@@ -302,18 +285,19 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         String type = n.f1.accept(this, null);
         String methName = n.f2.accept(this, null);
         String mangName = new String(methName);
-        Symbol retId = new Symbol(methName, type);
-        MethodInfo methI = new MethodInfo(retId);
+        MethodInfo methI = new MethodInfo(new Symbol(methName, type));
 
         String className = getFirstEl(argu);
+
+        // check if return type undefined
+        updateUndefTypes(type);
 
         for(int i = 0; i < args.length; ++i){
             String ptype = getFirstEl(args[i]);
             String name = getSecEl(args[i]);
             mangName += "_" + ptype;
             updateUndefTypes(ptype);
-            Symbol param = new Symbol(name, ptype);
-            methI.addParam(param);
+            methI.addParam(new Symbol(name, ptype));
         }
         methI.setMangName(mangName);
 
@@ -333,7 +317,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
             if(superMethRetType != null && !methRetType.equals(superMethRetType)){
                     throw new Exception(String.format("Override return types don't match -> class %s (%s-%s)",
                                                     className, methRetType, superMethRetType));
-            }else if(superMethRetType != null){ // overriden method, skip overload check for this method.
+            }else if(superMethRetType != null){
                 isOverridden = true;
                 break;
             }
@@ -348,10 +332,8 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return null;
     }
 
-    /**
-     * f0 -> FormalParameter()
-     * f1 -> FormalParameterTail()
-     */
+     // f0 -> FormalParameter()
+     // f1 -> FormalParameterTail()
     @Override
     public String visit(FormalParameterList n, String argu) throws Exception {
         String ret = n.f0.accept(this, null); // type|id
@@ -363,19 +345,15 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return ret;
     }
 
-    /**
-     * f0 -> FormalParameter()
-     * f1 -> FormalParameterTail()
-     */
+     // f0 -> FormalParameter()
+     // f1 -> FormalParameterTail()
     @Override
     public String visit(FormalParameterTerm n, String argu) throws Exception {
         return n.f1.accept(this, null);
     }
 
-    /**
-     * f0 -> ","
-     * f1 -> FormalParameter()
-     */
+     // f0 -> ","
+     // f1 -> FormalParameter()
     @Override
     public String visit(FormalParameterTail n, String argu) throws Exception {
         String ret = "";
@@ -386,10 +364,8 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         return ret;
     }
 
-    /**
-     * f0 -> Type()
-     * f1 -> Identifier()
-     */
+     // f0 -> Type()
+     // f1 -> Identifier()
     @Override
     public String visit(FormalParameter n, String argu) throws Exception {
         String type = n.f0.accept(this, null);

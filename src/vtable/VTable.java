@@ -4,9 +4,9 @@ import java.util.*;
 import symboltable.*;
 
 public class VTable {
-    private Map<String, Map.Entry<String, List<MethodInfo>>> class_methods = new LinkedHashMap<>();
+    private Map<String, List<Info>> classMethods = new LinkedHashMap<>();
 
-    public Map.Entry<String, List<MethodInfo>> getMethods(String className) {
+    public List<Info> getMethods(String className) {
         return class_methods.containsKey(className) ? class_methods.get(className) : null;
     }
 
@@ -14,23 +14,22 @@ public class VTable {
         return class_methods.get(className).getValue().size();
     }
 
-    public void addClass(String className, String superClass) throws Exception {
+    public void addClass(String className) throws Exception {
         if (class_methods.containsKey(className))
             throw new Exception("Duplicate class in vtable\n");
-        class_methods.put(className, new AbstractMap.SimpleEntry<>(
-            superClass,
-            List<MethodInfo>()
-        ));
+        class_methods.put(className, new ArrayList<>());
     }
 
-    public void addMethod(String className, MethodInfo methI) throws Exception {
+    public void addMethod(String className, MethodInfo methI, String defClass) throws Exception {
         if (!class_methods.containsKey(className))
             throw new Exception(String.format("Class %s not found in vtable\n"), className);
-        List<MethodInfo> meths = class_methods.get(className).getValue();
+
+        List<Info> methods = classMethods.get(className);
+        Info entry = new Info(defClass, methI);
 
         if (meths.contains(methI))
-            methods.set(meths.indexOf(methI), methI);
+            methods.set(meths.indexOf(entry), entry);
         else
-            meths.add(methI);
+            meths.add(entry);
     }
 }

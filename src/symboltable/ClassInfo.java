@@ -9,7 +9,7 @@ public class ClassInfo {
     private int currMethOffs;
     // foo_int_boolean, MethodInfo
     Map<String, MethodInfo> methodsSignatures = new LinkedHashMap<String, MethodInfo>();
-    // foo, MethodInfo
+    // foo, List<MethodInfo>
     Map<String, List<MethodInfo>> methods = new LinkedHashMap<>();
     Map<String, Symbol> fields = new LinkedHashMap<String, Symbol>();
 

@@ -27,7 +27,7 @@ public class VTable {
         List<Info> methods = classMethods.get(className);
         Info entry = new Info(defClass, methI);
 
-        if (meths.contains(methI))
+        if (meths.contains(entry))
             methods.set(meths.indexOf(entry), entry);
         else
             meths.add(entry);

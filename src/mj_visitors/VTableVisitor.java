@@ -4,12 +4,12 @@ import symbol_table.*;
 import vtable.*;
 
 public class VTableVisitor extends GJDepthFirst<String, String> {
-    private VTable vt;
-    private SymbolTable st;
+    private VTable vtable;
+    private SymbolTable symbt;
 
-    public VTableVisitor(VTableVisitor vt, SymbolTable st) {
-        this.vt = vt;
-        this.st = st;
+    public VTableVisitor(VTableVisitor vtable, SymbolTable symbt) {
+        this.vtable = vtable;
+        this.symbt = symbt;
     }
 
     private String getFirstEl(String scope){
@@ -42,7 +42,7 @@ public class VTableVisitor extends GJDepthFirst<String, String> {
     // f17 -> "}"
     public String visit(MainClass n, String argu) throws Exception {
         String className = n.f1.accept(this, null);
-        vt.addClass(className, null);
+        vtable.addClass(className);
         return null;
    }
 
@@ -54,7 +54,7 @@ public class VTableVisitor extends GJDepthFirst<String, String> {
     // f5 -> "}"
     public String visit(ClassDeclaration n, String argu) throws Exception {
         String className = n.f1.accept(this, null);
-        vt.addClass(className, null);
+        vtable.addClass(className);
         n.f4.accept(this, className);
         return null;
    }
@@ -72,15 +72,13 @@ public class VTableVisitor extends GJDepthFirst<String, String> {
         String className = n.f1.accept(this, null);
         String superName = n.f3.accept(this, null);
 
-        vt.addClass(className, superName);
+        vtable.addClass(className);
 
-        // Since we're extending a class, first copy the superclass' virtual table
-        // entries into the first positions of the current class' virtual table.
+        // copy superclass vtable first
+        for (MethodInfo method : vtable.getMethods(superName))
+            vtable.addMethod(className, method, method.getDefClass());
 
-        for (MethodInfo method : vt.getMethods(supername).getValue())
-            vt.addMethod(classname, method);
-
-        n.f6.accept(this, classname);
+        n.f6.accept(this, className);
 
         return null;
     }
@@ -110,8 +108,8 @@ public class VTableVisitor extends GJDepthFirst<String, String> {
             String ptype = getFirstEl(args[i]);
             mangName += "_" + ptype;
         }
-        MethodInfo methI = st.getClass(className).getMethodMang(mangName);
-        vt.addMethod(className, methI);
+        MethodInfo methI = symbt.getClass(className).getMethodMang(mangName);
+        vtable.addMethod(className, methI, className);
     }
 
      // f0 -> FormalParameter()

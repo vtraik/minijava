@@ -8,8 +8,8 @@ import symbol_table.*;
 // get order of methods hashmap global between Ref, Vtable, CG visitors
 // or just remove it completely ?
 
-// new llvm ir requires ptr instead of bitcasts . Should change code for that
-
+// might put String.format in emits to be more readable ?
+// messageSend and
 class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private VTable vtable;
     private SymbolTable symbt;
@@ -19,6 +19,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private int fieldOffs = 0;
     private int reg_id = 0;
     private int label_id = 0;
+    // for phi. Only updated in expr nodes
     private String prevBasicBlock = null;
 
     public CodeGenVisitor(SymbolTable symbt, VTable vtable, FileWriter fw) {
@@ -67,18 +68,16 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         if(superClass == null) // not found
             return null;
         else
-            return findVarType(id, superClass.getName() + "|null");
+            return findVar(id, superClass.getName() + "|null");
     }
 
     private String llvmType(String type) {
-        if (t.equals("int"))
+        if (type.equals("int"))
             return "i32";
-        else if (t.equals("bool"))
+        else if (type.equals("bool"))
             return "i8";
-        else if (t.equals("int[]"))
-            return "i32*";
 
-        return "i8*"; // classes
+        return "ptr"; // classes, int arrays
     }
 
 
@@ -95,39 +94,72 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     }
 
     private void emitHelpers() throws Exception {
-        emit("declare i8* @calloc(i32, i32)\n"
-            + "declare i32 @printf(i8*, ...)\n"
+        emit("declare ptr @calloc(i32, i32)\n"
+            + "declare i32 @printf(ptr, ...)\n"
             + "declare void @exit(i32)\n\n"
             + "@_cint = constant [4 x i8] c\"%d\\0a\\00\"\n"
             + "@_cOOB = constant [15 x i8] c\"Out of bounds\\0a\\00\"\n\n"
             + "define void @print_int(i32 %i) {\n"
-            + "\t%_str = bitcast [4 x i8]* @_cint to i8*\n"
-            + "\tcall i32 (i8*, ...) @printf(i8* %_str, i32 %i)\n"
+            + "\tcall i32 (ptr, ...) @printf(ptr @_cint, i32 %i)\n"
             + "\tret void\n"
             + "}\n\n"
             + "define void @throw_oob() {\n"
-            + "\t%_str = bitcast [15 x i8]* @_cOOB to i8*\n"
-            + "\tcall i32 (i8*, ...) @printf(i8* %_str)\n"
+            + "\tcall i32 (ptr, ...) @printf(ptr @_cOOB)\n"
             + "\tcall void @exit(i32 1)\n"
             + "\tret void\n"
             + "}\n\n"
         );
     }
 
-    private emitVtableDecl() {
-        // @.className_vtable = global [numMeth x i8*] [methodList]
+    private void emitVtableDecl() {
         for (c : symbt.getClasses()) {
             List<Info> clMeths = c.getMethods();
+            methNum = clMeths.size();
+
+            // @.className_vtable = global [numMeth x ptr] [methodList]
             emit("@." + c.getName() + "_vtable = global ["
-                 + clMeths.size() + " x i8*] [" );
-            for (meth : clMeths.getValue()) {
-                String defClass = clMeths.get
-                String className = clMeths.getKey();
-                emit("ptr @" + className + meth.getMangName() ",\n");
+                 + methNum  + " x ptr] [" );
+
+            for (meth : clMeths) {
+                String defClass = clMeths.getDefClass();
+                // ptr @defClass.foo_(paramtypes)
+                emit("ptr @" + defClass + "." + meth.getMangName());
+
+                methNum--;
+                emit(methNum == 0 ? "" : ", ");
             }
+
+            emit("]\n");
         }
+
+        emit("\n");
     }
-i8* bitcast (i32 ()* @func1 to i8*)
+
+    // emits code for oob check and returns a ptr to that mem
+    private String emitCheckOOB(String arrSize) {
+        String pref = getFirstEl(expr.getType()).equals("iLit") ? "" : "%";
+        emit("\t%" + arrSize + " = add i32 1, " + pref + expr.getName() + "\n");
+
+        // size >= 1 (since arr[0] = size)
+        String cmp = newReg();
+        emit("\t%" + cmp + " = icmp sge i32 %" + arrSize + ", 1\n");
+
+        String elselabel = newLabel();
+        String thenlabel = newLabel();
+        String alloc = newTemp();
+
+        emit("\tbr i1 %" + cmp + ", label %" + thenlabel + ", label %" + elselabel + "\n\n"
+             + elselabel + ":\n"
+                + "\tcall void @throw_oob()\n"
+                + "\tbr label %" + thenlabel + "\n\n"
+            + thenlabel + ":\n"
+                + "\t%" + alloc + " = call ptr @calloc(i32 %" + size + ", i32 4)\n"
+                );
+
+        emit("\tstore i32 " + pref + expr.getName() + ", ptr %" + alloc + "\n\n");
+        return alloc;
+    }
+
     // f0  -> "class"
     // f1  -> Identifier()
     // f2  -> "{"
@@ -201,11 +233,11 @@ i8* bitcast (i32 ()* @func1 to i8*)
         String type = n.f0.accept(this, null).getType();
         String name = n.f1.f0.tokenImage;
 
-        // i32,i1 = 0 | i32*,i8* = null
+        // i32,i1 = 0 | ptr, ptr = null
         emit("\t%" + name + " = alloca " + type + "\n"
              + "\tstore " + type + " "
              +  (type.equals("i32") || type.equals("i1") ? "0" : "null")
-             + ", " + type + "* %" + name + "\n\n"
+             + ", " "ptr %" + name + "\n\n"
              );
 
         return null;
@@ -232,22 +264,22 @@ i8* bitcast (i32 ()* @func1 to i8*)
         ClassInfo classI = symbt.getClass(className);
 
         // might be temp
-        String[] args = n.f4.present() ? n.f4.accept(this, null).split(",") : new String[0]; // ??
+        String[] args = n.f4.present() ? n.f4.accept(this, null).getName().split(",") : new String[0];
 
         String mangName = new String(methName);
 
         for(int i = 0; i < args.length; ++i){
-            String ptype = getFirstEl(args[i]); // ??
+            String ptype = getFirstEl(args[i]);
             mangName += "_" + ptype;
         }
         MethodInfo methI = classI.getMethodMang(mangName);
 
         // define + args
         String type = llvmType(methI.getRetId().getType());
-        emit("\ndefine " + type + "@" + name + "(i8* %this");
+        emit("\ndefine " + type + "@" + className + "." + mangName +  "(ptr %this");
 
         // param names := _id
-        List<Symbol> params = methI.getParams()
+        List<Symbol> params = methI.getParams();
         for (Symbol pref : params) {
             emit(", " + llvmType(pref.getType()) + " %_" + methi.getName());
         }
@@ -258,7 +290,7 @@ i8* bitcast (i32 ()* @func1 to i8*)
             String name = pref.getName();
             String type = llvmType(pref.getType())
             emit("\t%" + name + " = alloca " + type + "\n"
-                 + "\tstore " + type + " %_" + name + ", " + type + "* %" + name + "\n\n");
+                 + "\tstore " + type + " %_" + name + ", " + "ptr %" + name + "\n\n");
         }
 
         n.f7.accept(this, argu + "|" + mangName); // var decl
@@ -282,14 +314,14 @@ i8* bitcast (i32 ()* @func1 to i8*)
         //        = 2 -> IntegerType
         //        = 3 -> Identifier
         if (n.f0.which == 3)
-            return new Symbol(null, "i8*");
+            return new Symbol(null, "ptr");
         else
             return super.visit(n, argu);
     }
 
     @Override
     public Symbol visit(ArrayType n, String argu) {
-        return new Symbol(null, "i32*");
+        return new Symbol(null, "ptr");
     }
 
     @Override
@@ -310,13 +342,11 @@ i8* bitcast (i32 ()* @func1 to i8*)
 
         if(isField) {
             String tempPtr = newReg();
-            String tempCast = newReg();
             String tempLoad = newReg();
 
             // get ptr to field, cast to right type and load field
-            emit("\t%" + tempPtr + " = getelementptr i8, i8* %this, i32 " + fieldOffs + "\n"
-                + "\t%" + tempCast + " = bitcast i8* %" + tempPtr + " to " + type + "*\n"
-                + "\t%" + tempLoad + " = load " + type + ", " + type + "* %" + tempCast + "\n\n"
+            emit("\t%" + tempPtr + " = getelementptr i8, ptr %this, i32 " + fieldOffs + "\n"
+                + "\t%" + tempLoad + " = load " + type + ", ptr %" + tempPtr + "\n\n"
                 );
 
             return new Symbol(tempLoad, type + "|" + var.getType());
@@ -324,7 +354,7 @@ i8* bitcast (i32 ()* @func1 to i8*)
 
         String tempLoad = newReg();
 
-        emit("\t%" + tempLoad + " = load " + type + ", " + type + "* %" + var.getName() + "\n");
+        emit("\t%" + tempLoad + " = load " + type + ", " + "ptr %" + var.getName() + "\n");
 
         return new Symbol(tempLoad, type + "|" + var.getType());
     }
@@ -343,24 +373,22 @@ i8* bitcast (i32 ()* @func1 to i8*)
 
         Symbol exprReg = n.f2.accept(this, argu); // expression code
 
-        String pref = getFirstEl(retReg.getType()).endsWith("Lit") ? "" : "%";
+        String pref = getFirstEl(exprReg.getType()).endsWith("Lit") ? "" : "%";
 
         if (lvalueIsField) {
             String tempPtr = newReg();
-            String tempCast = newReg();
 
             // get field'pref ptr, cast to its type, store expr res to it
-            emit("\t%" + tempPtr + " = getelementptr i8, i8* %this, i32 " + lvalueOffs + "\n"
-                + "\t%" + tempCast + " = bitcast i8* %" + tempPtr + " to " + type + "*\n"
+            emit("\t%" + tempPtr + " = getelementptr i8, ptr %this, i32 " + lvalueOffs + "\n"
                 + "\tstore " + type + " " + pref
-                + expr.getName() + ", " + type + "* %" + tempCast + "\n\n"
+                + expr.getName() + ", ptr %" + tempPtr + "\n\n"
                 );
 
             return null;
         }
 
         emit("\tstore " + type + " " + pref
-            + expr.getName() + ", " + type + "* %" + lvalue.getName() + "\n\n"
+            + expr.getName() + ", " + "ptr %" + lvalue.getName() + "\n\n"
             );
 
         return null;
@@ -375,7 +403,37 @@ i8* bitcast (i32 ()* @func1 to i8*)
     // f6 -> ";"
     @Override
     public Symbol visit(ArrayAssignmentStatement n, String argu) throws Exception {
+        Symbol arr = findVar(n.f0.f0.tokenImage, argu);
+        // capture current state
+        boolean lvalueIsField = isField;
+        int lvalueOffs = fieldOffs;
 
+        Symbol idx = n.f2.accept(this, argu); // expr code
+        Symbol expr = n.f5.accept(this, argu); // expr code
+
+        String thenlabel = newLabel();
+        String elselabel = newLabel();
+
+        String load;
+
+        if (lvalueIsField) {
+            String ptr = newReg();
+            load = newReg();
+            emit("\t%" + ptr + " = getelementptr i8, ptr %this, i32 " + lvalueOffs + "\n"
+                + "\t%" + temp_load + " = load ptr, ptr %" + ptr + "\n"
+                );
+        } else {
+            load = newReg();
+            emit("\t%" + load + " = load ptr, ptr %" + arr.getName() + "\n");
+        }
+
+        // check for oob
+        String arrSize = newReg();
+        emit("\t%" + arrSize + " = load i32, ptr %" + load + "\n\n");
+        emitCheckOOB(arrSize);
+
+        prevBasicBlock = thenlabel;
+        return null;
     }
 
     // f0 -> "if"
@@ -456,7 +514,7 @@ i8* bitcast (i32 ()* @func1 to i8*)
         Symbol expr = n.f2.accept(this, argu); // expr code
 
         String pref = getFirstEl(expr.getType()).equals("iLit") ? "" : "%";
-        emit("call void i32 @print_int(i32 " + pref + expr.getType() + ")\n\n");
+        emit("call void @print_int(i32 " + pref + expr.getName() + ")\n\n");
 
         return null;
     }
@@ -489,7 +547,7 @@ i8* bitcast (i32 ()* @func1 to i8*)
         emit("\tbr label %" + label3 + "\n\n"
             + label3 + ":\n"
             + "\t%" + r + " = phi i1 [ 0, %" + label2 + " ], [ "
-            + pref2 + rclause.getId() + ", %" + prevBasicBlock + " ]\n\n"
+            + pref2 + rclause.getName() + ", %" + prevBasicBlock + " ]\n\n"
             );
 
         prevBasicBlock = label3;
@@ -512,8 +570,8 @@ i8* bitcast (i32 ()* @func1 to i8*)
         String pref2 = getFirstEl(rexpr.getType()).equals("iLit") ? "" : "%";
 
         emit("\t%" + r + " = icmp slt i32 "
-            + "%" + pref1 + lexpr.getName() + ", "
-            + "%" + pref2 + rexpr.getName() "\n\n");
+            + pref1 + lexpr.getName() + ", "
+            + pref2 + rexpr.getName() "\n\n");
 
         return new Symbol(r, "i1|boolean");
     }
@@ -531,9 +589,8 @@ i8* bitcast (i32 ()* @func1 to i8*)
         String pref1 = getFirstEl(lexpr.getType()).equals("iLit") ? "" : "%";
         String pref2 = getFirstEl(rexpr.getType()).equals("iLit") ? "" : "%";
 
-        emit("\t%" + r + " = add i32 %" + lexpr.getName()
-             + ", " + "%" + rexpr.getName() + "\n\n");
-
+        emit("\t%" + r + " = add i32 " + pref1 + lexpr.getName() + ", "
+             + pref2 + rexpr.getName() + "\n\n");
         return new Symbol(r, "i32|int");
     }
 
@@ -550,8 +607,8 @@ i8* bitcast (i32 ()* @func1 to i8*)
         String pref1 = getFirstEl(lexpr.getType()).equals("iLit") ? "" : "%";
         String pref2 = getFirstEl(rexpr.getType()).equals("iLit") ? "" : "%";
 
-        emit("\t%" + r + " = sub i32 %" + lexpr.getName()
-             + ", " + "%" + rexpr.getName() + "\n\n");
+        emit("\t%" + r + " = sub i32 " + pref1 + lexpr.getName() + ", "
+             + pref2 + rexpr.getName() + "\n\n");
 
         return new Symbol(r, "i32|int");
     }
@@ -569,8 +626,8 @@ i8* bitcast (i32 ()* @func1 to i8*)
         String pref1 = getFirstEl(lexpr.getType()).equals("iLit") ? "" : "%";
         String pref2 = getFirstEl(rexpr.getType()).equals("iLit") ? "" : "%";
 
-        emit("\t%" + r + " = mul i32 %" + lexpr.getName()
-             + ", " + "%" + rexpr.getName() + "\n\n");
+        emit("\t%" + r + " = mul i32 " + pref1 + lexpr.getName() + ", "
+             + pref2 + rexpr.getName() + "\n\n");
 
         return new Symbol(r, "i32|int");
     }
@@ -581,7 +638,13 @@ i8* bitcast (i32 ()* @func1 to i8*)
     // f3 -> "]"
     @Override
     public Symbol visit(ArrayLookup n, String argu) throws Exception {
-
+        Symbol arrBase = n.f0.accept(this, argu);
+        Symbol idx = n.f2.accept(this, argu);
+        String arrSize = newReg();
+        emit("\t%" + size + " = load i32, ptr %" + arrBase.getName() + "\n");
+        emitCheckOOB(arrSize);
+        prevBasicBlock = thenlabel;
+        return new Symbol(res, "i32|int");
     }
 
     // f0 -> PrimaryExpression()
@@ -593,7 +656,7 @@ i8* bitcast (i32 ()* @func1 to i8*)
 
         String r = newReg();
         // first 4 bytes = length of array
-        emit("\t%" + r + " = load i32, i32* %" + expr.getName() + "\n\n");
+        emit("\t%" + r + " = load i32, ptr %" + expr.getName() + "\n\n");
 
         return new Symbol(r, "i32|int");
     }
@@ -622,7 +685,7 @@ i8* bitcast (i32 ()* @func1 to i8*)
         String pref = getFirstEl(expr.getType()).endsWith("Lit") ? "" : "%";
         String r = pref + expr.getName() + (exprtail == null ? "" : exprtail.getName());
 
-        return new VarInfo(r, null); // ??
+        return new Symbol(r, null); // ??
 
     }
 
@@ -638,7 +701,7 @@ i8* bitcast (i32 ()* @func1 to i8*)
                     + exprt.getName();
         }
 
-        return new VarInfo(ret, null);
+        return new Symbol(ret, null);
     }
 
     // f0 -> ","
@@ -665,7 +728,7 @@ i8* bitcast (i32 ()* @func1 to i8*)
 
     @Override
     public Symbol visit(ThisExpression n, String argu) {
-        return new Symbol("this", "i8*|" + getFirstEl(argu));
+        return new Symbol("this", "ptr|" + getFirstEl(argu));
     }
 
     // f0 -> "new"
@@ -675,7 +738,11 @@ i8* bitcast (i32 ()* @func1 to i8*)
     // f4 -> "]"
     @Override
     public Symbol visit(ArrayAllocationExpression n, String argu) throws Exception {
-
+        Symbol expr = n.f3.accept(this, argu); // expr code
+        String arrSize = newReg();
+        String allocPtr = emitCheckOOB(arrSize);
+        prevBasicBlock = thenlabel;
+        return new Symbol(allocPtr, "ptr|int[]");
     }
 
     // f0 -> "new"
@@ -686,8 +753,9 @@ i8* bitcast (i32 ()* @func1 to i8*)
     public Symbol visit(AllocationExpression n, String argu) throws Exception {
         String className = n.f1.f0.tokenImage;
 
-        String obj_ref = newReg();
+        String objRef = newReg();
 
+        return new Symbol(objRef, "ptr|" + className);
     }
 
     // f0 -> "!"
@@ -700,7 +768,7 @@ i8* bitcast (i32 ()* @func1 to i8*)
         String r = newReg();
 
         String pref1 = getFirstEl(clause.getType()).equals("bLit") ? "" : "%";
-        emit("\t%" + r + " = xor i32 1, " + pref + clause.getName() + "\n\n");
+        emit("\t%" + r + " = xor i1 1, " + pref + clause.getName() + "\n\n");
 
         return new Symbol(r, "i1|boolean");
     }
@@ -719,41 +787,41 @@ i8* bitcast (i32 ()* @func1 to i8*)
      // f0 -> FormalParameter()
      // f1 -> FormalParameterTail()
     @Override
-    public String visit(FormalParameterList n, String argu) throws Exception {
-        String ret = n.f0.accept(this, null); // type|id
+    public Symbol visit(FormalParameterList n, String argu) throws Exception {
+        String ret = n.f0.accept(this, null).getName(); // type|id
 
         if (n.f1 != null) {
-            ret += n.f1.accept(this, null);
+            ret += n.f1.accept(this, null).getName();
         }
 
-        return ret;
+        return new Symbol(ret, null);
     }
 
      // f0 -> FormalParameter()
      // f1 -> FormalParameterTail()
     @Override
-    public String visit(FormalParameterTerm n, String argu) throws Exception {
+    public Symbol visit(FormalParameterTerm n, String argu) throws Exception {
         return n.f1.accept(this, null);
     }
 
      // f0 -> ","
      // f1 -> FormalParameter()
     @Override
-    public String visit(FormalParameterTail n, String argu) throws Exception {
+    public Symbol visit(FormalParameterTail n, String argu) throws Exception {
         String ret = "";
         for ( Node node: n.f0.nodes) {
-            ret += "," + node.accept(this, null);
+            ret += "," + node.accept(this, null).getName();
         }
 
-        return ret;
+        return new Symbol(ret, null);
     }
 
      // f0 -> Type()
      // f1 -> Identifier()
     @Override
-    public String visit(FormalParameter n, String argu) throws Exception {
+    public Symbol visit(FormalParameter n, String argu) throws Exception {
         String type = n.f0.accept(this, null);
-        String name = n.f1.accept(this, null);
-        return type + "|" + name;
+        String name = n.f1.f0.tokenImage;
+        return new Symbol(type + "|" + name, null);
     }
 }

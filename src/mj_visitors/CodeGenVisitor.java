@@ -71,6 +71,26 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
             return findVar(id, superClass.getName() + "|null");
     }
 
+    private MethodInfo findMethod(String methName, String className) {
+        ClassInfo classI = symbt.getClass(className);
+
+        MethodInfo meth = classI.getMethodMang(methName); // ??
+        if (meth != null)
+            return meth;
+        else
+            return findMethod(methName, symbt.getSuperClass(className));
+    }
+
+    private int getMethodOffset(String className, String methodName) throws Exception {
+        ClassInfo classInfo = symbt.getClass(className);
+        int offs= classInfo.getMethOffset(methodName);
+
+        if (offset == null)
+            return getMethodOffset(symbt.getSuper(className), methName);
+        else
+            return offset;
+    }
+
     private String llvmType(String type) {
         if (type.equals("int"))
             return "i32";
@@ -182,7 +202,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     public Symbol visit(MainClass n, String argu) throws Exception {
         String classname = n.f1.f0.tokenImage;
 
-        emitVTableDecl(); // vtable declarations
+        emitVtableDecl(); // vtable declarations
         emitHelpers();    // boilerplate
 
         emit("define i32 @main() {\n");
@@ -669,6 +689,16 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f5 -> ")"
     @Override
     public Symbol visit(MessageSend n, String argu) throws Exception {
+        Symbol obj = n.f0.accept(this, argu); // expression code
+        String methodName = n.f2.f0.tokenImage;
+
+        // expression list code
+        // Symbol(num or %r<num>, %r<num>.., type1_type2_..)
+        Symbol args = n.f4.present() ? n.f4.accept(this, argu) : new Symbol("", null);
+
+        String methMang = methodName + "_" + args.getType();
+        MethodInfo methodInfo = findMethod(methMang, getSecEl(obj.getType()));
+        String methType = methodInfo.getRetId().getType();
 
     }
 
@@ -684,24 +714,27 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
         String pref = getFirstEl(expr.getType()).endsWith("Lit") ? "" : "%";
         String r = pref + expr.getName() + (exprtail == null ? "" : exprtail.getName());
+        String rTypes = getSecEl(expr.getType()) + (exprtail == null ? "" : "_" + exprtail.getType());
 
-        return new Symbol(r, null); // ??
+        return new Symbol(r, rTypes); // Symbol(num or %r<num>, %r<num>.., type1_type2_..)
 
     }
 
     // f0 -> ( ExpressionTerm() )*
     @Override
     public Symbol visit(ExpressionTail n, String argu) throws Exception {
-        String ret = "";
+        String retNames = "";
+        String retTypes = "";
 
         for (Node node : n.f0.nodes) {
             Symbol exprt = node.accept(this, argu);
-            ret += ", "
+            retNames += ", "
                     + (getFirstEl(exprt.getType()).endsWith("Lit") ? "" : "%")
                     + exprt.getName();
+            retTypes += "_" + getSecEl(exprt.getType());
         }
 
-        return new Symbol(ret, null);
+        return new Symbol(retNames, retTypes);
     }
 
     // f0 -> ","
@@ -754,6 +787,19 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         String className = n.f1.f0.tokenImage;
 
         String objRef = newReg();
+        // objsize = 8 (vtable size) + fieldoffset (accum variable)
+        int objSize = 8 + symbt.getClass(className).getFieldOffset();
+
+        emit("\t%" + objRef + " = call ptr @calloc(i32 1, i32 " + objSize + ")\n");
+
+        String base = newReg();
+        int numMeths = vtable.getNumMeths(className);
+
+        // write vtable ptr to obj heap space
+        emit("\t%" + base + " = getelementptr [" + numMeths + " x ptr]"
+            + ", ptr @." + className + "_vtable, i32 0, i32 0\n"
+            + "\tstore ptr %" + base + ", ptr %" + objRef + "\n\n"
+            );
 
         return new Symbol(objRef, "ptr|" + className);
     }

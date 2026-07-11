@@ -17,7 +17,7 @@ public class VTable {
     public void addClass(String className) throws Exception {
         if (classMethods.containsKey(className))
             throw new Exception("Duplicate class in vtable\n");
-        classMethods.put(className, new ArrayList<>());
+        classMethods.put(className, new ArrayList<Info>());
     }
 
     public void addMethod(String className, MethodInfo methI, String defClass) throws Exception {

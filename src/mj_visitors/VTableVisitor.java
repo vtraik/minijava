@@ -44,7 +44,7 @@ public class VTableVisitor extends GJDepthFirst<String, String> {
     // f4 -> ( MethodDeclaration() )*
     // f5 -> "}"
     public String visit(ClassDeclaration n, String argu) throws Exception {
-        String className = n.f1.accept(this, null);
+        String className = n.f1.f0.tokenImage;
         vtable.addClass(className);
         n.f4.accept(this, className);
         return null;

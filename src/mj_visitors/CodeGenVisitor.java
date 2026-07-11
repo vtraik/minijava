@@ -40,7 +40,6 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private Symbol findVar(String id, String scope) throws Exception {
         String className = getFirstEl(scope);
         String methMangName = getSecEl(scope);
-
         ClassInfo classI = symbt.getClass(className);
         // check Method scope
         if(!methMangName.equals("null")){
@@ -61,12 +60,8 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         }
 
         // find in super class
-        ClassInfo superClass = symbt.getSuper(className);
-
-        if(superClass == null) // not found
-            return null;
-        else
-            return findVar(id, superClass.getName() + "|null");
+        ClassInfo superClass = symbt.getSuper(className); // super shouldn't return null
+        return findVar(id, superClass.getName() + "|null");
     }
 
     private MethodInfo findMethod(String methName, String className) {
@@ -108,6 +103,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
     private void emit(String code) throws Exception {
         fw.write(code);
+        fw.flush();
     }
 
     private void emitHelpers() throws Exception {
@@ -201,8 +197,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         n.f14.accept(this, classname + "|main_String[]"); // generate code: var declarations
         n.f15.accept(this, classname + "|main_String[]"); // generate code: statements
 
-        emit("\n\tret i32 0\n}\n");
-
+        emit("\tret i32 0\n}\n");
         return null;
     }
 
@@ -269,12 +264,9 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f12 -> "}"
     @Override
     public Symbol visit(MethodDeclaration n, String argu) throws Exception {
-        String className = argu;
+        String className = getFirstEl(argu);
         MethodInfo methI = symbt.getNumMeth(methNumber++);
         ClassInfo classI = symbt.getClass(className);
-
-        // might be temp
-        String[] args = n.f4.present() ? n.f4.accept(this, null).getName().split(",") : new String[0];
 
         String mangName = methI.getMangName();
 
@@ -297,15 +289,15 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
                  + "\tstore " + paramtype + " %_" + name + ", " + "ptr %" + name + "\n\n");
         }
 
-        n.f7.accept(this, argu + "|" + mangName); // var decl
-        n.f8.accept(this, argu + "|" + mangName); // statements
+        n.f7.accept(this, className + "|" + mangName); // var decl
+        n.f8.accept(this, className + "|" + mangName); // statements
 
-        Symbol retReg = n.f10.accept(this, argu + "|" + mangName);
+        Symbol retReg = n.f10.accept(this, className + "|" + mangName);
 
 
         String pref = getFirstEl(retReg.getType()).endsWith("Lit") ? "" : "%";
         // return expr
-        emit("ret " + llvmType(methI.getRetId().getType())
+        emit("\tret " + llvmType(methI.getRetId().getType())
              + " " + pref + retReg.getName() + "\n}\n");
 
         return null;
@@ -527,7 +519,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         Symbol expr = n.f2.accept(this, argu); // expr code
 
         String pref = getFirstEl(expr.getType()).equals("iLit") ? "" : "%";
-        emit("call void @print_int(i32 " + pref + expr.getName() + ")\n\n");
+        emit("\tcall void @print_int(i32 " + pref + expr.getName() + ")\n\n");
 
         return null;
     }

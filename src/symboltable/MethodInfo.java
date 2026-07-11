@@ -87,4 +87,24 @@ public class MethodInfo {
             throw new Exception(String.format("Duplicate symbol %s in method scope -> %s", var.getName(), retId.getName()));
         localVars.put(var.getName(), var);
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+
+        if (obj == null)
+            return false;
+
+        if (getClass() != obj.getClass())
+            return false;
+
+        return mangName.equals(((MethodInfo) obj).mangName);
+    }
+
+    @Override
+    public int hashCode() {
+        return mangName.hashCode();
+    }
+
 }

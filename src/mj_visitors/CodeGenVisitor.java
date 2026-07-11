@@ -73,6 +73,10 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private MethodInfo findMethod(String methName, String className, String[] types) throws Exception {
         ClassInfo classI = symbt.getClass(className);
         List<MethodInfo> methList = classI.getMethod(methName);
+
+        if (methList == null)
+            return findMethod(methName, classI.getSuper().getName(), types); // super shoudln't ret null
+
         MethodInfo meth = getClassCompMethod(methList, types);
         if (meth != null)
             return meth;
@@ -131,9 +135,13 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private int getMethodOffset(String className, String methName, String[] types) throws Exception {
         ClassInfo classI = symbt.getClass(className);
         List<MethodInfo> methList = classI.getMethod(methName);
+
+        if (methList == null)
+            return getMethodOffset(classI.getSuper().getName(), methName, types); // super shoudln't ret null
+
         MethodInfo methI = getClassCompMethod(methList, types);
         if (methI == null)
-            return getMethodOffset( classI.getSuper().getName(), methName, types); // super shoudln't ret null
+            return getMethodOffset(classI.getSuper().getName(), methName, types); // super shoudln't ret null
         else
             return methI.getOffset();
     }

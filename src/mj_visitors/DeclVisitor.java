@@ -325,7 +325,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
 
         methI.setOverridden(isOverridden);
         symbt.getClass(className).addMethod(methI);
-        symbt.addNumMeth(methI); // keep the visited order of methods (needed in ref pass)
+        symbt.addNumMeth(methI); // keep the visited order of methods (needed in ref, codegen passes)
 
         String scope = String.format("%s|%s", className, mangName);
         n.f7.accept(this, scope);

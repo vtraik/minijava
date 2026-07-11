@@ -5,7 +5,7 @@ import symboltable.*;
 
 class RefVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
-    private int methNumber;
+    private int methNumber = 0;
 
     public RefVisitor(SymbolTable s){
         symbt = s;

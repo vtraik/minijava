@@ -12,6 +12,7 @@ compile: $(GEN_DIR) $(BIN)
 		src/Main.java \
 		src/mj_visitors/*.java \
 		src/symboltable/*.java \
+		src/vtable/*.java \
 		$(GEN_DIR)/*.java \
 		visitor/*.java \
 		syntaxtree/*.java

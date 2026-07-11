@@ -3,10 +3,7 @@ import visitor.GJDepthFirst;
 import java.util.*;
 import syntaxtree.*;
 import vtable.*;
-import symbol_table.*;
-
-// get order of methods hashmap global between Ref, Vtable, CG visitors
-// or just remove it completely ?
+import symboltable.*;
 
 // might put String.format in emits to be more readable ?
 // messageSend and
@@ -15,6 +12,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private SymbolTable symbt;
     private FileWriter fw;
 
+    private int methNumber = 0; // order of symbt table pass (used in ref vis too)
     private boolean isField = false;
     private int fieldOffs = 0;
     private int reg_id = 0;
@@ -49,7 +47,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
             MethodInfo meth = classI.getMethodMang(methMangName);
             Symbol pref = meth.resolveBinding(id);
             if(pref != null) {
-                is_field = false;
+                isField = false;
                 return pref; // found local local var or param
             }
         }
@@ -74,21 +72,20 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private MethodInfo findMethod(String methName, String className) {
         ClassInfo classI = symbt.getClass(className);
 
-        MethodInfo meth = classI.getMethodMang(methName); // ??
+        MethodInfo meth = classI.getMethodMang(methName);
         if (meth != null)
             return meth;
         else
-            return findMethod(methName, symbt.getSuperClass(className));
+            return findMethod(methName, classI.getSuper().getName()); // super shoudln't ret null
     }
 
-    private int getMethodOffset(String className, String methodName) throws Exception {
-        ClassInfo classInfo = symbt.getClass(className);
-        int offs= classInfo.getMethOffset(methodName);
-
-        if (offset == null)
-            return getMethodOffset(symbt.getSuper(className), methName);
+    private int getMethodOffset(String className, String methName) throws Exception {
+        ClassInfo classI = symbt.getClass(className);
+        MethodInfo methI = classI.getMethodMang(methName);
+        if (methI == null)
+            return getMethodOffset( classI.getSuper().getName(), methName); // super shoudln't ret null
         else
-            return offset;
+            return methI.getOffset();
     }
 
     private String llvmType(String type) {
@@ -131,19 +128,19 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         );
     }
 
-    private void emitVtableDecl() {
-        for (c : symbt.getClasses()) {
-            List<Info> clMeths = c.getMethods();
-            methNum = clMeths.size();
+    private void emitVtableDecl() throws Exception {
+        for (String c : symbt.getClasses().keySet()) {
+            List<Info> clMeths = vtable.getMethods(c);
+            int methNum = clMeths.size();
 
             // @.className_vtable = global [numMeth x ptr] [methodList]
-            emit("@." + c.getName() + "_vtable = global ["
+            emit("@." + c + "_vtable = global ["
                  + methNum  + " x ptr] [" );
 
-            for (meth : clMeths) {
-                String defClass = clMeths.getDefClass();
+            for (Info meth : clMeths) {
+                String defClass = meth.getDefClass();
                 // ptr @defClass.foo_(paramtypes)
-                emit("ptr @" + defClass + "." + meth.getMangName());
+                emit("ptr @" + defClass + "." + meth.getMethod().getMangName());
 
                 methNum--;
                 emit(methNum == 0 ? "" : ", ");
@@ -155,29 +152,23 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         emit("\n");
     }
 
-    // emits code for oob check and returns a ptr to that mem
-    private String emitCheckOOB(String arrSize) {
-        String pref = getFirstEl(expr.getType()).equals("iLit") ? "" : "%";
-        emit("\t%" + arrSize + " = add i32 1, " + pref + expr.getName() + "\n");
-
+    // emits code for oob check and returns a label for the then branch
+    private String emitCheckOOB(Symbol s, String arrSize) throws Exception {
         // size >= 1 (since arr[0] = size)
         String cmp = newReg();
         emit("\t%" + cmp + " = icmp sge i32 %" + arrSize + ", 1\n");
 
         String elselabel = newLabel();
         String thenlabel = newLabel();
-        String alloc = newTemp();
 
         emit("\tbr i1 %" + cmp + ", label %" + thenlabel + ", label %" + elselabel + "\n\n"
              + elselabel + ":\n"
                 + "\tcall void @throw_oob()\n"
                 + "\tbr label %" + thenlabel + "\n\n"
             + thenlabel + ":\n"
-                + "\t%" + alloc + " = call ptr @calloc(i32 %" + size + ", i32 4)\n"
-                );
+            );
 
-        emit("\tstore i32 " + pref + expr.getName() + ", ptr %" + alloc + "\n\n");
-        return alloc;
+        return thenlabel;
     }
 
     // f0  -> "class"
@@ -257,7 +248,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         emit("\t%" + name + " = alloca " + type + "\n"
              + "\tstore " + type + " "
              +  (type.equals("i32") || type.equals("i1") ? "0" : "null")
-             + ", " "ptr %" + name + "\n\n"
+             + ", ptr %" + name + "\n\n"
              );
 
         return null;
@@ -279,20 +270,13 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     @Override
     public Symbol visit(MethodDeclaration n, String argu) throws Exception {
         String className = argu;
-        String methName = n.f2.f0.tokenImage;
-
+        MethodInfo methI = symbt.getNumMeth(methNumber++);
         ClassInfo classI = symbt.getClass(className);
 
         // might be temp
         String[] args = n.f4.present() ? n.f4.accept(this, null).getName().split(",") : new String[0];
 
-        String mangName = new String(methName);
-
-        for(int i = 0; i < args.length; ++i){
-            String ptype = getFirstEl(args[i]);
-            mangName += "_" + ptype;
-        }
-        MethodInfo methI = classI.getMethodMang(mangName);
+        String mangName = methI.getMangName();
 
         // define + args
         String type = llvmType(methI.getRetId().getType());
@@ -300,17 +284,17 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
         // param names := _id
         List<Symbol> params = methI.getParams();
-        for (Symbol pref : params) {
-            emit(", " + llvmType(pref.getType()) + " %_" + methi.getName());
+        for (Symbol par : params) {
+            emit(", " + llvmType(par.getType()) + " %_" + par.getName());
         }
         emit(") {\n");
 
         // alloca and store for each argument
-        for (Symbol pref : params) {
-            String name = pref.getName();
-            String type = llvmType(pref.getType())
-            emit("\t%" + name + " = alloca " + type + "\n"
-                 + "\tstore " + type + " %_" + name + ", " + "ptr %" + name + "\n\n");
+        for (Symbol par : params) {
+            String name = par.getName();
+            String paramtype = llvmType(par.getType());
+            emit("\t%" + name + " = alloca " + paramtype + "\n"
+                 + "\tstore " + paramtype + " %_" + name + ", " + "ptr %" + name + "\n\n");
         }
 
         n.f7.accept(this, argu + "|" + mangName); // var decl
@@ -391,9 +375,9 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         boolean lvalueIsField = isField;
         int lvalueOffs = fieldOffs;
 
-        Symbol exprReg = n.f2.accept(this, argu); // expression code
+        Symbol rvalue = n.f2.accept(this, argu); // expression code
 
-        String pref = getFirstEl(exprReg.getType()).endsWith("Lit") ? "" : "%";
+        String pref = getFirstEl(rvalue.getType()).endsWith("Lit") ? "" : "%";
 
         if (lvalueIsField) {
             String tempPtr = newReg();
@@ -401,14 +385,14 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
             // get field'pref ptr, cast to its type, store expr res to it
             emit("\t%" + tempPtr + " = getelementptr i8, ptr %this, i32 " + lvalueOffs + "\n"
                 + "\tstore " + type + " " + pref
-                + expr.getName() + ", ptr %" + tempPtr + "\n\n"
+                + rvalue.getName() + ", ptr %" + tempPtr + "\n\n"
                 );
 
             return null;
         }
 
         emit("\tstore " + type + " " + pref
-            + expr.getName() + ", " + "ptr %" + lvalue.getName() + "\n\n"
+            + rvalue.getName() + ", " + "ptr %" + lvalue.getName() + "\n\n"
             );
 
         return null;
@@ -431,16 +415,13 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         Symbol idx = n.f2.accept(this, argu); // expr code
         Symbol expr = n.f5.accept(this, argu); // expr code
 
-        String thenlabel = newLabel();
-        String elselabel = newLabel();
-
         String load;
 
         if (lvalueIsField) {
             String ptr = newReg();
             load = newReg();
             emit("\t%" + ptr + " = getelementptr i8, ptr %this, i32 " + lvalueOffs + "\n"
-                + "\t%" + temp_load + " = load ptr, ptr %" + ptr + "\n"
+                + "\t%" + load + " = load ptr, ptr %" + ptr + "\n"
                 );
         } else {
             load = newReg();
@@ -450,9 +431,21 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         // check for oob
         String arrSize = newReg();
         emit("\t%" + arrSize + " = load i32, ptr %" + load + "\n\n");
-        emitCheckOOB(arrSize);
+        emitCheckOOB(idx, arrSize);
 
-        prevBasicBlock = thenlabel;
+        String and = newReg();
+        String idxPtr = newReg();
+        String resPtr = newReg();
+        String pref1 = getFirstEl(idx.getType()).equals("iLit") ? "" : "%";
+        String pref2 = getFirstEl(expr.getType()).equals("iLit") ? "" : "%";
+
+        emit("\t%" + idxPtr + " = add i32 1, " + pref1 + idx.getName() + "\n"
+            + "\t%" + resPtr + " = getelementptr i32, ptr %"
+            + load + ", i32 %" + idxPtr + "\n\n"
+            + "\tstore i32 " + pref2
+            + expr.getName() + ", ptr %" + resPtr + "\n\n"
+            );
+
         return null;
     }
 
@@ -472,7 +465,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         String exit = newLabel();
 
         String pref = getFirstEl(expr.getType()).equals("bLit") ? "" : "%";
-        emit("br i1 " pref + expr.getName()
+        emit("br i1 " + pref + expr.getName()
             + ", label %" + iflabel + ", label %" + elselabel + "\n\n"
             );
 
@@ -510,7 +503,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         String pref = getFirstEl(expr.getType()).equals("bLit") ? "" : "%";
 
         // branch to body if true, else exit
-        emit("br i1 " pref + expr.getName()
+        emit("br i1 " + pref + expr.getName()
             + ", label %" + body + ", label %" + exit + "\n\n"
             );
 
@@ -591,7 +584,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
         emit("\t%" + r + " = icmp slt i32 "
             + pref1 + lexpr.getName() + ", "
-            + pref2 + rexpr.getName() "\n\n");
+            + pref2 + rexpr.getName() + "\n\n");
 
         return new Symbol(r, "i1|boolean");
     }
@@ -659,12 +652,25 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     @Override
     public Symbol visit(ArrayLookup n, String argu) throws Exception {
         Symbol arrBase = n.f0.accept(this, argu);
-        Symbol idx = n.f2.accept(this, argu);
+        Symbol expr = n.f2.accept(this, argu);
         String arrSize = newReg();
-        emit("\t%" + size + " = load i32, ptr %" + arrBase.getName() + "\n");
-        emitCheckOOB(arrSize);
+        emit("\t%" + arrSize + " = load i32, ptr %" + arrBase.getName() + "\n");
+        String thenlabel = emitCheckOOB(expr, arrSize);
+
+        String idx = newReg();
+        String resPtr = newReg();
+        String resVal = newReg();
+        String pref = getFirstEl(expr.getType()).equals("iLit") ? "" : "%";
+
+        emit("\t%" + idx + " = add i32 1, " + pref + expr.getName() + "\n"
+            + "\t%" + resPtr + " = getelementptr i32, ptr %"
+            + arrBase.getName() + ", i32 %" + idx + "\n"
+            + "\t%" + resVal + " = load i32, ptr %" + resPtr + "\n\n"
+            );
+
         prevBasicBlock = thenlabel;
-        return new Symbol(res, "i32|int");
+
+        return new Symbol(resVal, "i32|int");
     }
 
     // f0 -> PrimaryExpression()
@@ -690,16 +696,47 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     @Override
     public Symbol visit(MessageSend n, String argu) throws Exception {
         Symbol obj = n.f0.accept(this, argu); // expression code
-        String methodName = n.f2.f0.tokenImage;
+        String methName = n.f2.f0.tokenImage;
 
         // expression list code
         // Symbol(num or %r<num>, %r<num>.., type1_type2_..)
-        Symbol args = n.f4.present() ? n.f4.accept(this, argu) : new Symbol("", null);
+        Symbol argsTypes = n.f4.present() ? n.f4.accept(this, argu) : new Symbol("", "");
+        // eg: ["%r1", "%r2", 3, 10, "%r9"]
+        String[] args = argsTypes.getName().equals("") ? new String[0] : argsTypes.getName().split(",");
+        // eg: foo_int_boolean_B
+        String methMang = argsTypes.getType().equals("") ? methName : methName + "_" + argsTypes.getType();
 
-        String methMang = methodName + "_" + args.getType();
         MethodInfo methodInfo = findMethod(methMang, getSecEl(obj.getType()));
         String methType = methodInfo.getRetId().getType();
 
+        String vtptr = newReg();
+        String mptr = newReg();
+        String actual_mptr = newReg();
+
+        int offs = getMethodOffset(getSecEl(obj.getType()), methMang);
+        int methodIdx = offs / 8; // relative method index
+
+        // load vtable ptr , calc meth addr and load meth ptr
+        emit("\t%" + vtptr + " = load ptr, ptr %" + obj.getName() + "\n"
+            + "\t%" + mptr + " = getelementptr ptr, ptr %" + vtptr + ", i32 " + methodIdx + "\n\n"
+            + "\t%" + actual_mptr + " = load ptr, ptr %" + mptr + "\n"
+            );
+
+        String res = newReg();
+
+        emit("\t%" + res + " = call " + llvmType(methType) + " %"
+            + actual_mptr + "(ptr %" + obj.getName()
+            );
+
+        int idx = 0;
+        for (Symbol arg : methodInfo.getParams()) {
+            emit(", " + llvmType(arg.getType()) + " " + args[idx]);
+            idx += 1;
+        }
+
+        emit(")\n\n");
+
+        return new Symbol(res, llvmType(methType) + "|" + methType);
     }
 
     // f0 -> Expression()
@@ -773,7 +810,17 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     public Symbol visit(ArrayAllocationExpression n, String argu) throws Exception {
         Symbol expr = n.f3.accept(this, argu); // expr code
         String arrSize = newReg();
-        String allocPtr = emitCheckOOB(arrSize);
+        String pref = (getFirstEl(expr.getType()).equals("iLit") ? "" : "%");
+
+        emit("\t%" + arrSize + " = add i32 1, " + pref + expr.getName() + "\n");
+
+        String thenlabel = emitCheckOOB(expr, arrSize);
+        String allocPtr = newReg();
+
+        emit("\t%" + allocPtr + " = call ptr @calloc(i32 %" + arrSize + ", i32 4)\n"
+            + "\tstore i32 " + pref + expr.getName() + ", ptr %" + allocPtr + "\n\n"
+            );
+
         prevBasicBlock = thenlabel;
         return new Symbol(allocPtr, "ptr|int[]");
     }
@@ -813,7 +860,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         // xor with 1 = ! Clause
         String r = newReg();
 
-        String pref1 = getFirstEl(clause.getType()).equals("bLit") ? "" : "%";
+        String pref = getFirstEl(clause.getType()).equals("bLit") ? "" : "%";
         emit("\t%" + r + " = xor i1 1, " + pref + clause.getName() + "\n\n");
 
         return new Symbol(r, "i1|boolean");
@@ -825,49 +872,5 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     @Override
     public Symbol visit(BracketExpression n, String argu) throws Exception {
         return n.f1.accept(this, argu);
-    }
-
-
-    // THESE MIGHT BE TEMP . Also i return Symbol, so they should also return that
-
-     // f0 -> FormalParameter()
-     // f1 -> FormalParameterTail()
-    @Override
-    public Symbol visit(FormalParameterList n, String argu) throws Exception {
-        String ret = n.f0.accept(this, null).getName(); // type|id
-
-        if (n.f1 != null) {
-            ret += n.f1.accept(this, null).getName();
-        }
-
-        return new Symbol(ret, null);
-    }
-
-     // f0 -> FormalParameter()
-     // f1 -> FormalParameterTail()
-    @Override
-    public Symbol visit(FormalParameterTerm n, String argu) throws Exception {
-        return n.f1.accept(this, null);
-    }
-
-     // f0 -> ","
-     // f1 -> FormalParameter()
-    @Override
-    public Symbol visit(FormalParameterTail n, String argu) throws Exception {
-        String ret = "";
-        for ( Node node: n.f0.nodes) {
-            ret += "," + node.accept(this, null).getName();
-        }
-
-        return new Symbol(ret, null);
-    }
-
-     // f0 -> Type()
-     // f1 -> Identifier()
-    @Override
-    public Symbol visit(FormalParameter n, String argu) throws Exception {
-        String type = n.f0.accept(this, null);
-        String name = n.f1.f0.tokenImage;
-        return new Symbol(type + "|" + name, null);
     }
 }

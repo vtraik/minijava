@@ -15,8 +15,8 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private int methNumber = 0; // order of symbt table pass (used in ref vis too)
     private boolean isField = false;
     private int fieldOffs = 0;
-    private int reg_id = 0;
-    private int label_id = 0;
+    private int regId = 0;
+    private int labelId = 0;
     // for phi. Only updated in expr nodes
     private String prevBasicBlock = null;
 
@@ -61,24 +61,79 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
         // find in super class
         ClassInfo superClass = symbt.getSuper(className); // super shouldn't return null
+        if (superClass == null) {
+            System.out.println("Null on findvar " + id + " " + scope);
+            return null;
+        }
         return findVar(id, superClass.getName() + "|null");
     }
 
-    private MethodInfo findMethod(String methName, String className) {
+    // i want accept of Tree (with any type for param. It'll be right cause of Sc)
+    // Problem: I index with name_types, so subtypes cant find it. -> Find the compat
+    private MethodInfo findMethod(String methName, String className, String[] types) throws Exception {
         ClassInfo classI = symbt.getClass(className);
-
-        MethodInfo meth = classI.getMethodMang(methName);
+        List<MethodInfo> methList = classI.getMethod(methName);
+        MethodInfo meth = getClassCompMethod(methList, types);
         if (meth != null)
             return meth;
         else
-            return findMethod(methName, classI.getSuper().getName()); // super shoudln't ret null
+            return findMethod(methName, classI.getSuper().getName(), types); // super shoudln't ret null
     }
 
-    private int getMethodOffset(String className, String methName) throws Exception {
+    private MethodInfo getClassCompMethod(List<MethodInfo> classMeths, String[] args) throws Exception {
+        int argMatched = -1;
+        for(int i = 0; i < classMeths.size(); ++i){
+            MethodInfo meth = classMeths.get(i);
+            int numParams = meth.getNumParams();
+            List<Symbol> params = meth.getParams();
+
+            if(args.length != numParams) continue;
+            argMatched = 0;
+            for(int j = 0; j < numParams; ++j){
+                String methType = params.get(j).getType();
+                if(!subtype(args[j], methType))
+                    break;
+                ++argMatched;
+            }
+
+            if(argMatched == numParams){
+                return meth; // found a compatible method
+            }
+        }
+        return null;
+    }
+
+    private boolean subtype(String type1, String type2) throws Exception {
+        if(type2.equals("int"))
+            return type1.equals("int");
+        if(type2.equals("boolean"))
+            return type1.equals("boolean");
+        if(type2.equals("int[]"))
+            return type1.equals("int[]");
+
+        if(type1.equals(type2))
+            return true;
+
+        return subtyperec(type1, type2);
+    }
+
+    private boolean subtyperec(String type1, String type2) {
+        if(type1.equals(type2) && type1 != null)
+            return true;
+
+        ClassInfo superClass = symbt.getClass(type1).getSuper();
+        if(superClass == null)
+            return false;
+        else
+            return subtyperec(superClass.getName(), type2);
+    }
+
+    private int getMethodOffset(String className, String methName, String[] types) throws Exception {
         ClassInfo classI = symbt.getClass(className);
-        MethodInfo methI = classI.getMethodMang(methName);
+        List<MethodInfo> methList = classI.getMethod(methName);
+        MethodInfo methI = getClassCompMethod(methList, types);
         if (methI == null)
-            return getMethodOffset( classI.getSuper().getName(), methName); // super shoudln't ret null
+            return getMethodOffset( classI.getSuper().getName(), methName, types); // super shoudln't ret null
         else
             return methI.getOffset();
     }
@@ -94,11 +149,11 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
 
     private String newReg() {
-        return "r" + reg_id++;
+        return "r" + regId++;
     }
 
     private String newLabel() {
-        return "l" + label_id++;
+        return "l" + labelId++;
     }
 
     private void emit(String code) throws Exception {
@@ -457,19 +512,19 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         String exit = newLabel();
 
         String pref = getFirstEl(expr.getType()).equals("bLit") ? "" : "%";
-        emit("br i1 " + pref + expr.getName()
+        emit("\tbr i1 " + pref + expr.getName()
             + ", label %" + iflabel + ", label %" + elselabel + "\n\n"
             );
 
         emit(elselabel + ":\n");
         n.f6.accept(this, argu); // else statement code
 
-        emit("br label %" + exit + "\n\n");
+        emit("\tbr label %" + exit + "\n\n");
 
         emit(iflabel + ":\n");
         n.f4.accept(this, argu); // if statement code
 
-        emit("br label %" + exit + "\n\n"
+        emit("\tbr label %" + exit + "\n\n"
              + exit + ":\n");
 
         return null;
@@ -487,7 +542,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         String body  = newLabel();
         String exit  = newLabel();
 
-        emit("br label %" + entry + "\n"
+        emit("\tbr label %" + entry + "\n"
              + entry + ":\n");
 
         Symbol expr = n.f2.accept(this, argu);
@@ -495,7 +550,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         String pref = getFirstEl(expr.getType()).equals("bLit") ? "" : "%";
 
         // branch to body if true, else exit
-        emit("br i1 " + pref + expr.getName()
+        emit("\tbr i1 " + pref + expr.getName()
             + ", label %" + body + ", label %" + exit + "\n\n"
             );
 
@@ -503,7 +558,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
         n.f4.accept(this, argu); // statement code
 
-        emit("br label %" + entry + "\n\n");
+        emit("\tbr label %" + entry + "\n\n");
         emit(exit + ":\n");
 
         return null;
@@ -536,9 +591,9 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         String label3 = newLabel();
 
         String pref1 = getFirstEl(lclause.getType()).equals("bLit") ? "" : "%";
-        emit("br i1 " + pref1 + lclause.getName() + ", label %" + label1 + ", label %" + label2 + "\n\n"
+        emit("\tbr i1 " + pref1 + lclause.getName() + ", label %" + label1 + ", label %" + label2 + "\n\n"
              + label2 + ":\n"
-             + "br %" + label3 + "\n\n"
+             + "\tbr %" + label3 + "\n\n"
              + label1 + ":\n");
 
         prevBasicBlock = label1;
@@ -698,14 +753,15 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         // eg: foo_int_boolean_B
         String methMang = argsTypes.getType().equals("") ? methName : methName + "_" + argsTypes.getType();
 
-        MethodInfo methodInfo = findMethod(methMang, getSecEl(obj.getType()));
+        String[] typeArr = argsTypes.getType().isEmpty() ? new String[0] : argsTypes.getType().split("_");
+        MethodInfo methodInfo = findMethod(methName, getSecEl(obj.getType()), typeArr);
         String methType = methodInfo.getRetId().getType();
 
         String vtptr = newReg();
         String mptr = newReg();
         String actual_mptr = newReg();
 
-        int offs = getMethodOffset(getSecEl(obj.getType()), methMang);
+        int offs = getMethodOffset(getSecEl(obj.getType()), methName, typeArr);
         int methodIdx = offs / 8; // relative method index
 
         // load vtable ptr , calc meth addr and load meth ptr
@@ -743,7 +799,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
         String pref = getFirstEl(expr.getType()).endsWith("Lit") ? "" : "%";
         String r = pref + expr.getName() + (exprtail == null ? "" : exprtail.getName());
-        String rTypes = getSecEl(expr.getType()) + (exprtail == null ? "" : "_" + exprtail.getType());
+        String rTypes = getSecEl(expr.getType()) + (exprtail == null ? "" : exprtail.getType());
 
         return new Symbol(r, rTypes); // Symbol(num or %r<num>, %r<num>.., type1_type2_..)
 

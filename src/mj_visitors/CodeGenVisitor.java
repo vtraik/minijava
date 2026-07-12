@@ -4,9 +4,11 @@ import java.util.*;
 import syntaxtree.*;
 import vtable.*;
 import symboltable.*;
+import static utils.Utils.*;
 
 // might put String.format in emits to be more readable ?
-// messageSend and
+
+// expr find : Sem check -> resolved Meth or var : ptr
 class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private VTable vtable;
     private SymbolTable symbt;
@@ -26,17 +28,6 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         this.fw = fw;
     }
 
-    private String getFirstEl(String scope){
-        int indx = scope.indexOf('|');
-        return scope.substring(0, indx);
-    }
-
-    private String getSecEl(String scope){
-        int indx = scope.indexOf('|');
-        return scope.substring(indx + 1);
-    }
-
-
     private Symbol findVar(String id, String scope) throws Exception {
         String className = getFirstEl(scope);
         String methMangName = getSecEl(scope);
@@ -44,19 +35,19 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         // check Method scope
         if(!methMangName.equals("null")){
             MethodInfo meth = classI.getMethodMang(methMangName);
-            Symbol pref = meth.resolveBinding(id);
-            if(pref != null) {
+            Symbol s = meth.resolveBinding(id);
+            if(s != null) {
                 isField = false;
                 return pref; // found local local var or param
             }
         }
 
         // check Class field scope
-        Symbol pref = classI.getField(id);
-        if(pref != null) {
+        Symbol s = classI.getField(id);
+        if(s != null) {
             isField = true;
             fieldOffs = 8 + classI.getFieldOffset(); // vtable ptr + field offs
-            return pref;
+            return s;
         }
 
         // find in super class
@@ -77,59 +68,11 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         if (methList == null)
             return findMethod(methName, classI.getSuper().getName(), types); // super shoudln't ret null
 
-        MethodInfo meth = getClassCompMethod(methList, types);
+        MethodInfo meth = getClassCompMethod(symbt, methList, types);
         if (meth != null)
             return meth;
         else
             return findMethod(methName, classI.getSuper().getName(), types); // super shoudln't ret null
-    }
-
-    private MethodInfo getClassCompMethod(List<MethodInfo> classMeths, String[] args) throws Exception {
-        int argMatched = -1;
-        for(int i = 0; i < classMeths.size(); ++i){
-            MethodInfo meth = classMeths.get(i);
-            int numParams = meth.getNumParams();
-            List<Symbol> params = meth.getParams();
-
-            if(args.length != numParams) continue;
-            argMatched = 0;
-            for(int j = 0; j < numParams; ++j){
-                String methType = params.get(j).getType();
-                if(!subtype(args[j], methType))
-                    break;
-                ++argMatched;
-            }
-
-            if(argMatched == numParams){
-                return meth; // found a compatible method
-            }
-        }
-        return null;
-    }
-
-    private boolean subtype(String type1, String type2) throws Exception {
-        if(type2.equals("int"))
-            return type1.equals("int");
-        if(type2.equals("boolean"))
-            return type1.equals("boolean");
-        if(type2.equals("int[]"))
-            return type1.equals("int[]");
-
-        if(type1.equals(type2))
-            return true;
-
-        return subtyperec(type1, type2);
-    }
-
-    private boolean subtyperec(String type1, String type2) {
-        if(type1.equals(type2) && type1 != null)
-            return true;
-
-        ClassInfo superClass = symbt.getClass(type1).getSuper();
-        if(superClass == null)
-            return false;
-        else
-            return subtyperec(superClass.getName(), type2);
     }
 
     private int getMethodOffset(String className, String methName, String[] types) throws Exception {
@@ -139,7 +82,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         if (methList == null)
             return getMethodOffset(classI.getSuper().getName(), methName, types); // super shoudln't ret null
 
-        MethodInfo methI = getClassCompMethod(methList, types);
+        MethodInfo methI = getClassCompMethod(symbt, methList, types);
         if (methI == null)
             return getMethodOffset(classI.getSuper().getName(), methName, types); // super shoudln't ret null
         else
@@ -759,7 +702,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         // eg: ["%r1", "%r2", 3, 10, "%r9"]
         String[] args = argsTypes.getName().equals("") ? new String[0] : argsTypes.getName().split(",");
         // eg: foo_int_boolean_B
-        String methMang = argsTypes.getType().equals("") ? methName : methName + "_" + argsTypes.getType();
+        // String methMang = argsTypes.getType().equals("") ? methName : methName + "_" + argsTypes.getType();
 
         String[] typeArr = argsTypes.getType().isEmpty() ? new String[0] : argsTypes.getType().split("_");
         MethodInfo methodInfo = findMethod(methName, getSecEl(obj.getType()), typeArr);

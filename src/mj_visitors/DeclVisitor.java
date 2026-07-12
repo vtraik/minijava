@@ -2,6 +2,7 @@ import java.util.*;
 import syntaxtree.*;
 import visitor.GJDepthFirst;
 import symboltable.*;
+import static utils.Utils.*;
 
 class DeclVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
@@ -21,54 +22,11 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         }
     }
 
-    /*
-       Either {
-       1.  Scope: class|method.
-           method != null : method scope.
-           method == null : class scope.
-
-       2.  type|id
-   */
-    private String getFirstEl(String scope){
-        int indx = scope.indexOf('|');
-        return scope.substring(0, indx);
-    }
-
-    private String getSecEl(String scope){
-        int indx = scope.indexOf('|');
-        return scope.substring(indx + 1);
-    }
-
-    private boolean subtype(String type1, String type2) throws Exception {
-        if(type2.equals("int"))
-            return type1.equals("int");
-        if(type2.equals("boolean"))
-            return type1.equals("boolean");
-        if(type2.equals("int[]"))
-            return type1.equals("int[]");
-
-        if(type1.equals(type2))
-            return true;
-
-        return subtyperec(type1, type2);
-    }
-
-    private boolean subtyperec(String type1, String type2) {
-        if(type1.equals(type2))
-            return true;
-
-        ClassInfo superClass = symbt.getClass(type2).getSuper();
-        if(superClass == null)
-            return false;
-        else
-            return subtyperec(type1, superClass.getName());
-    }
-
     private boolean checkTypes(List<Symbol> l1, List<Symbol> l2) throws Exception {
         for(int i = 0; i < l1.size(); ++i){
             String t1 = l1.get(i).getType();
             String t2 = l2.get(i).getType();
-            if(!(subtype(t1, t2) || subtype(t2, t1)))
+            if(!(subtype(symbt, t1, t2) || subtype(symbt, t2, t1)))
                 return true; // valid overload
         }
         return false;

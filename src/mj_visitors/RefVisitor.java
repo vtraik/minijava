@@ -2,6 +2,7 @@ import java.util.*;
 import syntaxtree.*;
 import visitor.GJDepthFirst;
 import symboltable.*;
+import static utils.Utils.*;
 
 class RefVisitor extends GJDepthFirst<String, String>{
     private SymbolTable symbt;
@@ -28,42 +29,6 @@ class RefVisitor extends GJDepthFirst<String, String>{
         }catch(Exception e){
             return null;
         }
-    }
-
-
-    private String getFirstEl(String scope){
-        int indx = scope.indexOf('|');
-        return scope.substring(0, indx);
-    }
-
-    private String getSecEl(String scope){
-        int indx = scope.indexOf('|');
-        return scope.substring(indx + 1);
-    }
-
-    private boolean subtype(String type1, String type2) throws Exception {
-        if(type2.equals("int"))
-            return type1.equals("int");
-        if(type2.equals("boolean"))
-            return type1.equals("boolean");
-        if(type2.equals("int[]"))
-            return type1.equals("int[]");
-
-        if(type1.equals(type2))
-            return true;
-
-        return subtyperec(type1, type2);
-    }
-
-    private boolean subtyperec(String type1, String type2) {
-        if(type1.equals(type2) && type1 != null)
-            return true;
-
-        ClassInfo superClass = symbt.getClass(type1).getSuper();
-        if(superClass == null)
-            return false;
-        else
-            return subtyperec(superClass.getName(), type2);
     }
 
     private String findVarType(String id, String scope) throws Exception {
@@ -99,37 +64,13 @@ class RefVisitor extends GJDepthFirst<String, String>{
         if(classMeths == null) // no method with same name in this class
             return findMethodRetType(classI.getSuper(), name, args);
 
-        MethodInfo compMeth = getClassCompMethod(classMeths, args);
+        MethodInfo compMeth = getClassCompMethod(symbt, classMeths, args);
 
         if(compMeth != null)
             return compMeth.getRetId().getType();
 
         return findMethodRetType(classI.getSuper(), name, args);
 
-    }
-
-    private MethodInfo getClassCompMethod(List<MethodInfo> classMeths, String[] args) throws Exception {
-        int argMatched = -1;
-        for(int i = 0; i < classMeths.size(); ++i){
-            MethodInfo meth = classMeths.get(i);
-            int numParams = meth.getNumParams();
-            List<Symbol> params = meth.getParams();
-
-            if(args.length != numParams) continue;
-
-            argMatched = 0;
-            for(int j = 0; j < numParams; ++j){
-                String methType = params.get(j).getType();
-                if(!subtype(args[j], methType))
-                    break;
-                ++argMatched;
-            }
-
-            if(argMatched == numParams){
-                return meth; // found a compatible method
-            }
-        }
-        return null;
     }
 
     // f0  -> "class"
@@ -210,7 +151,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
         n.f8.accept(this, className + "|" + methName);
 
         String expRetType = n.f10.accept(this, className + "|" + methName);
-        if(!subtype(expRetType, methRetType))
+        if(!subtype(symbt, expRetType, methRetType))
             throw new Exception(String.format("Return type mismatch in %s.%s at %s:%s -> expected <%s>, got <%s>",
                                               className, method.getRetId().getName(),
                                               getToken(n.f10).beginLine, getToken(n.f10).beginColumn,
@@ -242,7 +183,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
     public String visit(AssignmentStatement n, String argu) throws Exception {
         String id = n.f0.accept(this, argu);
         String expr = n.f2.accept(this, argu);
-        if(!subtype(expr, id)){
+        if(!subtype(symbt, expr, id)){
             throw new Exception(String.format("Assignment type mismatch at %s:%s -> lval:%s, rval:%s",
                                               getToken(n.f0).beginLine, getToken(n.f0).beginColumn, id, expr));
         }

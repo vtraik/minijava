@@ -25,20 +25,6 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         this.fw = fw;
     }
 
-    private int getMethodOffset(String className, String methName, String[] types) throws Exception {
-        ClassInfo classI = symbt.getClass(className);
-        List<MethodInfo> methList = classI.getMethod(methName);
-
-        if (methList == null)
-            return getMethodOffset(classI.getSuper().getName(), methName, types); // super shoudln't ret null
-
-        MethodInfo methI = getClassCompMethod(symbt, methList, types);
-        if (methI == null)
-            return getMethodOffset(classI.getSuper().getName(), methName, types); // super shoudln't ret null
-        else
-            return methI.getOffset();
-    }
-
     private String llvmType(String type) {
         if (type.equals("int"))
             return "i32";
@@ -47,7 +33,6 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
         return "ptr"; // classes, int arrays
     }
-
 
     private String newReg() {
         return "r" + regId++;
@@ -288,7 +273,6 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     @Override
     public Symbol visit(Identifier n, String argu) throws Exception {
         // when identifier := expression
-        // Symbol var = findVar(n.f0.tokenImage, argu);
         Symbol var = (Symbol) n.getResolvedPtr();
         String type = llvmType(var.getType());
 
@@ -319,11 +303,9 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f3 -> ";"
     @Override
     public Symbol visit(AssignmentStatement n, String argu) throws Exception {
-        // Symbol lvalue = findVar(n.f0.f0.tokenImage, argu);
         Symbol lvalue = (Symbol) n.f0.getResolvedPtr();
         String type = llvmType(lvalue.getType());
         // save current state
-        // int lvalueIsField = n.f0.getIsField();
         int lvalueOffs = n.f0.getFieldOffs();
 
         Symbol rvalue = n.f2.accept(this, argu); // expression code
@@ -358,10 +340,8 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f6 -> ";"
     @Override
     public Symbol visit(ArrayAssignmentStatement n, String argu) throws Exception {
-        // Symbol arr = findVar(n.f0.f0.tokenImage, argu);
         Symbol arr = (Symbol) n.f0.getResolvedPtr();
         // capture current state
-        // boolean lvalueIsField = n.f0.getIsField();
         int lvalueOffs = n.f0.getFieldOffs();
 
         Symbol idx = n.f2.accept(this, argu); // expr code
@@ -648,17 +628,13 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     @Override
     public Symbol visit(MessageSend n, String argu) throws Exception {
         Symbol obj = n.f0.accept(this, argu); // expression code
-        String methName = n.f2.f0.tokenImage;
 
         // expression list code
         // Symbol(num or %r<num>, %r<num>.., type1_type2_..)
         Symbol argsTypes = n.f4.present() ? n.f4.accept(this, argu) : new Symbol("", "");
         // eg: ["%r1", "%r2", 3, 10, "%r9"]
         String[] args = argsTypes.getName().equals("") ? new String[0] : argsTypes.getName().split(",");
-        // eg: foo_int_boolean_B
-        // String methMang = argsTypes.getType().equals("") ? methName : methName + "_" + argsTypes.getType();
 
-        String[] typeArr = argsTypes.getType().isEmpty() ? new String[0] : argsTypes.getType().split("_");
         MethodInfo methodInfo = (MethodInfo) n.getResolvedPtr();
         String methType = methodInfo.getRetId().getType();
 
@@ -666,7 +642,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         String mptr = newReg();
         String actual_mptr = newReg();
 
-        int offs = getMethodOffset(getSecEl(obj.getType()), methName, typeArr);
+        int offs = methodInfo.getOffset();
         int methodIdx = offs / 8; // relative method index
 
         // load vtable ptr , calc meth addr and load meth ptr
@@ -674,6 +650,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
             + "\t%" + mptr + " = getelementptr ptr, ptr %" + vtptr + ", i32 " + methodIdx + "\n\n"
             + "\t%" + actual_mptr + " = load ptr, ptr %" + mptr + "\n"
             );
+
 
         String res = newReg();
 

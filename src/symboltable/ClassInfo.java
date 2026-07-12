@@ -107,7 +107,8 @@ public class ClassInfo {
                 System.out.println("---Methods---");
                 for(Map.Entry<String, MethodInfo> meth : methodsSignatures.entrySet()){
                     int offs = meth.getValue().getOffset();
-                    if(offs != -1)
+                    boolean isOverridden = meth.getValue().getOverridden();
+                    if(!isOverridden)
                         System.out.println(name + "." + meth.getValue().getRetId().getName() + " : " + offs);
                 }
                 System.out.println();
@@ -118,7 +119,8 @@ public class ClassInfo {
                 }
                 for(Map.Entry<String, MethodInfo> meth : methodsSignatures.entrySet()){
                     int offs = meth.getValue().getOffset();
-                    if(offs != -1)
+                    boolean isOverridden = meth.getValue().getOverridden();
+                    if(!isOverridden)
                         System.out.println(name + "." + meth.getKey() + " : " + offs);
                 }
         }

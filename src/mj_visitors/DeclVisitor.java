@@ -280,7 +280,8 @@ class DeclVisitor extends GJDepthFirst<String, String>{
                 break;
             }
         }
-
+        // set child's offs = parent's offs
+        if (isOverridden) methI.setOffset(superClass.getMethodMang(methI.getMangName()).getOffset());
         methI.setOverridden(isOverridden);
         symbt.getClass(className).addMethod(methI);
         symbt.addNumMeth(methI); // keep the visited order of methods (needed in ref, codegen passes)

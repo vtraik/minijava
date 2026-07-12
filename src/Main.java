@@ -43,7 +43,7 @@ public class Main {
                 root.accept(new CodeGenVisitor(symbt, vtable, fwriter), null);
 
                 // print offsets -> 1: + param types, 0: default
-                // st.printOffsets(1);
+                // symbt.printOffsets(1);
 
                 System.out.println();
             }

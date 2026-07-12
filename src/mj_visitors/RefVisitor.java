@@ -39,7 +39,6 @@ class RefVisitor extends GJDepthFirst<String, String>{
             MethodInfo meth = symbt.getClass(className).getMethodMang(methMangName);
             Symbol s = meth.resolveBinding(id);
             if(s != null) {
-                // n.setIsField(0);
                 n.setResolvedPtr(s);
                 return s.getType();
             }

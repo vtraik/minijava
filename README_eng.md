@@ -29,7 +29,7 @@ Four visitors are implemented that do:
 - `VTableVisitor`: Populates the vtable.
 - `CodeGenVisitor`: Generates llvm ir.
 
-> [!NOTES]
+> [!NOTE]
 > 1. "ClassName|MethodName\_argtype1_\argtype2\_..." is used as a scope mechanism. It gets passed as argument to 
 > the children nodes as the visitors walk the AST.
 > 2. LLVM-IR virtual registers follow the naming convention : `%r<number>` where <number> is an incrementing integer.

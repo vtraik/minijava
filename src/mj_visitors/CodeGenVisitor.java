@@ -8,15 +8,12 @@ import static utils.Utils.*;
 
 // might put String.format in emits to be more readable ?
 
-// expr find : Sem check -> resolved Meth or var : ptr
 class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private VTable vtable;
     private SymbolTable symbt;
     private FileWriter fw;
 
     private int methNumber = 0; // order of symbt table pass (used in ref vis too)
-    private boolean isField = false;
-    private int fieldOffs = 0;
     private int regId = 0;
     private int labelId = 0;
     // for phi. Only updated in expr nodes
@@ -26,53 +23,6 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         this.symbt = symbt;
         this.vtable = vtable;
         this.fw = fw;
-    }
-
-    private Symbol findVar(String id, String scope) throws Exception {
-        String className = getFirstEl(scope);
-        String methMangName = getSecEl(scope);
-        ClassInfo classI = symbt.getClass(className);
-        // check Method scope
-        if(!methMangName.equals("null")){
-            MethodInfo meth = classI.getMethodMang(methMangName);
-            Symbol s = meth.resolveBinding(id);
-            if(s != null) {
-                isField = false;
-                return pref; // found local local var or param
-            }
-        }
-
-        // check Class field scope
-        Symbol s = classI.getField(id);
-        if(s != null) {
-            isField = true;
-            fieldOffs = 8 + classI.getFieldOffset(); // vtable ptr + field offs
-            return s;
-        }
-
-        // find in super class
-        ClassInfo superClass = symbt.getSuper(className); // super shouldn't return null
-        if (superClass == null) {
-            System.out.println("Null on findvar " + id + " " + scope);
-            return null;
-        }
-        return findVar(id, superClass.getName() + "|null");
-    }
-
-    // i want accept of Tree (with any type for param. It'll be right cause of Sc)
-    // Problem: I index with name_types, so subtypes cant find it. -> Find the compat
-    private MethodInfo findMethod(String methName, String className, String[] types) throws Exception {
-        ClassInfo classI = symbt.getClass(className);
-        List<MethodInfo> methList = classI.getMethod(methName);
-
-        if (methList == null)
-            return findMethod(methName, classI.getSuper().getName(), types); // super shoudln't ret null
-
-        MethodInfo meth = getClassCompMethod(symbt, methList, types);
-        if (meth != null)
-            return meth;
-        else
-            return findMethod(methName, classI.getSuper().getName(), types); // super shoudln't ret null
     }
 
     private int getMethodOffset(String className, String methName, String[] types) throws Exception {
@@ -92,8 +42,8 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private String llvmType(String type) {
         if (type.equals("int"))
             return "i32";
-        else if (type.equals("bool"))
-            return "i8";
+        else if (type.equals("boolean"))
+            return "i1";
 
         return "ptr"; // classes, int arrays
     }
@@ -109,7 +59,6 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
     private void emit(String code) throws Exception {
         fw.write(code);
-        fw.flush();
     }
 
     private void emitHelpers() throws Exception {
@@ -142,7 +91,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
             for (Info meth : clMeths) {
                 String defClass = meth.getDefClass();
                 // ptr @defClass.foo_(paramtypes)
-                emit("ptr @" + defClass + "." + meth.getMethod().getMangName());
+                emit("ptr @\"" + defClass + "." + meth.getMethod().getMangName() + "\"");
 
                 methNum--;
                 emit(methNum == 0 ? "" : ", ");
@@ -278,7 +227,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
         // define + args
         String type = llvmType(methI.getRetId().getType());
-        emit("\ndefine " + type + "@" + className + "." + mangName +  "(ptr %this");
+        emit("\ndefine " + type + "@\"" + className + "." + mangName +  "\"(ptr %this");
 
         // param names := _id
         List<Symbol> params = methI.getParams();
@@ -339,10 +288,13 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     @Override
     public Symbol visit(Identifier n, String argu) throws Exception {
         // when identifier := expression
-        Symbol var = findVar(n.f0.tokenImage, argu);
+        // Symbol var = findVar(n.f0.tokenImage, argu);
+        Symbol var = (Symbol) n.getResolvedPtr();
         String type = llvmType(var.getType());
 
-        if(isField) {
+        // if field offs >= 8 (in semantic check it was a field => isField == true)
+        int fieldOffs = n.getFieldOffs();
+        if(fieldOffs >= 8) {
             String tempPtr = newReg();
             String tempLoad = newReg();
 
@@ -367,17 +319,18 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f3 -> ";"
     @Override
     public Symbol visit(AssignmentStatement n, String argu) throws Exception {
-        Symbol lvalue = findVar(n.f0.f0.tokenImage, argu);
+        // Symbol lvalue = findVar(n.f0.f0.tokenImage, argu);
+        Symbol lvalue = (Symbol) n.f0.getResolvedPtr();
         String type = llvmType(lvalue.getType());
         // save current state
-        boolean lvalueIsField = isField;
-        int lvalueOffs = fieldOffs;
+        // int lvalueIsField = n.f0.getIsField();
+        int lvalueOffs = n.f0.getFieldOffs();
 
         Symbol rvalue = n.f2.accept(this, argu); // expression code
 
         String pref = getFirstEl(rvalue.getType()).endsWith("Lit") ? "" : "%";
 
-        if (lvalueIsField) {
+        if (lvalueOffs >= 8) {
             String tempPtr = newReg();
 
             // get field'pref ptr, cast to its type, store expr res to it
@@ -405,17 +358,18 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f6 -> ";"
     @Override
     public Symbol visit(ArrayAssignmentStatement n, String argu) throws Exception {
-        Symbol arr = findVar(n.f0.f0.tokenImage, argu);
+        // Symbol arr = findVar(n.f0.f0.tokenImage, argu);
+        Symbol arr = (Symbol) n.f0.getResolvedPtr();
         // capture current state
-        boolean lvalueIsField = isField;
-        int lvalueOffs = fieldOffs;
+        // boolean lvalueIsField = n.f0.getIsField();
+        int lvalueOffs = n.f0.getFieldOffs();
 
         Symbol idx = n.f2.accept(this, argu); // expr code
         Symbol expr = n.f5.accept(this, argu); // expr code
 
         String load;
 
-        if (lvalueIsField) {
+        if (lvalueOffs >= 8) {
             String ptr = newReg();
             load = newReg();
             emit("\t%" + ptr + " = getelementptr i8, ptr %this, i32 " + lvalueOffs + "\n"
@@ -544,7 +498,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         String pref1 = getFirstEl(lclause.getType()).equals("bLit") ? "" : "%";
         emit("\tbr i1 " + pref1 + lclause.getName() + ", label %" + label1 + ", label %" + label2 + "\n\n"
              + label2 + ":\n"
-             + "\tbr %" + label3 + "\n\n"
+             + "\tbr label %" + label3 + "\n\n"
              + label1 + ":\n");
 
         prevBasicBlock = label1;
@@ -705,7 +659,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         // String methMang = argsTypes.getType().equals("") ? methName : methName + "_" + argsTypes.getType();
 
         String[] typeArr = argsTypes.getType().isEmpty() ? new String[0] : argsTypes.getType().split("_");
-        MethodInfo methodInfo = findMethod(methName, getSecEl(obj.getType()), typeArr);
+        MethodInfo methodInfo = (MethodInfo) n.getResolvedPtr();
         String methType = methodInfo.getRetId().getType();
 
         String vtptr = newReg();

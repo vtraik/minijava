@@ -14,16 +14,19 @@ public class Main {
 
         FileInputStream fis = null;
         FileWriter fwriter = null;
+        SymbolTable symbt = null;
+        VTable vtable = null;
+        Goal root = null;
         for(String file : args) {
             try {
                 System.out.println();
 
                 fis = new FileInputStream(file);
-                Goal root = new MiniJavaParser(fis).Goal();
+                root = new MiniJavaParser(fis).Goal();
 
                 System.out.println("Program parsed successfully.");
-                SymbolTable symbt = new SymbolTable();
-                VTable vtable = new VTable();
+                symbt = new SymbolTable();
+                vtable = new VTable();
 
                 // first pass: find declerations and populate symbol table
                 root.accept(new DeclVisitor(symbt), null);
@@ -50,6 +53,8 @@ public class Main {
             finally {
                 try {
                     if(fis != null) fis.close();
+                    if(fwriter != null) fwriter.close();
+                    fis = null; fwriter = null; symbt = null; vtable = null; root = null;
                 }
                 catch(IOException ex) {
                     System.err.println(ex.getMessage());

@@ -31,21 +31,28 @@ class RefVisitor extends GJDepthFirst<String, String>{
         }
     }
 
-    private String findVarType(String id, String scope) throws Exception {
+    private String findVarType(Identifier n, String id, String scope) throws Exception {
         String className = getFirstEl(scope);
         String methMangName = getSecEl(scope);
         // check Method scope
         if(!methMangName.equals("null")){
             MethodInfo meth = symbt.getClass(className).getMethodMang(methMangName);
             Symbol s = meth.resolveBinding(id);
-            if(s != null)
+            if(s != null) {
+                // n.setIsField(0);
+                n.setResolvedPtr(s);
                 return s.getType();
+            }
         }
 
         // check Class field scope
         Symbol s = symbt.getClass(className).getField(id);
-        if(s != null)
+        if(s != null) {
+            int offs = s.getOffset();
+            n.setFieldOffs(8 + offs); // vtable ptr + offs
+            n.setResolvedPtr(s);
             return s.getType();
+        }
 
         // find in super class
         ClassInfo superClass = symbt.getSuper(className);
@@ -53,24 +60,25 @@ class RefVisitor extends GJDepthFirst<String, String>{
         if(superClass == null) // not found
             return null;
         else
-            return findVarType(id, superClass.getName() + "|null");
+            return findVarType(n, id, superClass.getName() + "|null");
     }
 
-    private String findMethodRetType(ClassInfo classI, String name, String[] args) throws Exception {
+    private String findMethodRetType(MessageSend n, ClassInfo classI, String name, String[] args) throws Exception {
         if(classI == null) // no other class in the hierarchy
             return null;
 
         List<MethodInfo> classMeths = classI.getMethod(name);
         if(classMeths == null) // no method with same name in this class
-            return findMethodRetType(classI.getSuper(), name, args);
+            return findMethodRetType(n, classI.getSuper(), name, args);
 
         MethodInfo compMeth = getClassCompMethod(symbt, classMeths, args);
 
-        if(compMeth != null)
+        if(compMeth != null) {
+            n.setResolvedPtr(compMeth);
             return compMeth.getRetId().getType();
+        }
 
-        return findMethodRetType(classI.getSuper(), name, args);
-
+        return findMethodRetType(n, classI.getSuper(), name, args);
     }
 
     // f0  -> "class"
@@ -406,7 +414,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
 
         String[] rexprTypes = n.f4.present() ? n.f4.accept(this, argu).split(",") : new String[0];
 
-        String retType = findMethodRetType(classI, id, rexprTypes);
+        String retType = findMethodRetType(n, classI, id, rexprTypes);
         if(retType == null){
             String types = String.join(", ", rexprTypes);
             throw new Exception(String.format("No compatible method found at %s:%s -> %s.%s(%s)",
@@ -466,7 +474,7 @@ class RefVisitor extends GJDepthFirst<String, String>{
     @Override
     public String visit(Identifier n, String argu) throws Exception {
         String ret;
-        if((ret = findVarType(n.f0.tokenImage, argu)) != null)
+        if((ret = findVarType(n, n.f0.tokenImage, argu)) != null)
             return ret;
 
         String classN = getFirstEl(argu);

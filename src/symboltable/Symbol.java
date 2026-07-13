@@ -3,51 +3,51 @@ package symboltable;
 import java.util.Objects;
 
 public class Symbol {
-    private String name;
-    private String type;
-    private int offset;
+  private String name;
+  private String type;
+  private int offset;
 
-    public Symbol(String name, String type){
-        this.name = name;
-        this.type = type;
-        this.offset = -1;
-    }
+  public Symbol(String name, String type) {
+    this.name = name;
+    this.type = type;
+    this.offset = -1;
+  }
 
-    public String getName(){
-        return name;
-    }
+  public String getName() {
+    return name;
+  }
 
-    public String getType(){
-        return type;
-    }
+  public String getType() {
+    return type;
+  }
 
-    public int getOffset(){
-        return offset;
-    }
+  public int getOffset() {
+    return offset;
+  }
 
-    public void setName(String name){
-        this.name = name;
-    }
+  public void setName(String name) {
+    this.name = name;
+  }
 
-    public void setType(String type){
-        this.type = type;
-    }
+  public void setType(String type) {
+    this.type = type;
+  }
 
-    public void setOffset(int offset){
-        this.offset = offset;
-    }
+  public void setOffset(int offset) {
+    this.offset = offset;
+  }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof Symbol)) return false;
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (!(obj instanceof Symbol)) return false;
 
-        Symbol other = (Symbol) obj;
-        return Objects.equals(this.name, other.name);
-    }
+    Symbol other = (Symbol) obj;
+    return Objects.equals(this.name, other.name);
+  }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(name);
-    }
+  @Override
+  public int hashCode() {
+    return Objects.hash(name);
+  }
 }

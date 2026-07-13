@@ -52,9 +52,13 @@ class A {
     return true;
   }
 
-  public int x() { return x; }
+  public int x() {
+    return x;
+  }
 
-  public int y() { return y; }
+  public int y() {
+    return y;
+  }
 }
 
 class B extends A {
@@ -65,13 +69,17 @@ class B extends A {
     return true;
   }
 
-  public int x() { return x; }
+  public int x() {
+    return x;
+  }
 }
 
 class C {
   int x;
 
-  public int get_class_x() { return x; }
+  public int get_class_x() {
+    return x;
+  }
 
   public int get_method_x() {
     int x;
@@ -88,7 +96,9 @@ class C {
 class D extends C {
   boolean x;
 
-  public boolean get_class_x2() { return x; }
+  public boolean get_class_x2() {
+    return x;
+  }
 }
 
 class E extends D {
@@ -99,5 +109,7 @@ class E extends D {
     return true;
   }
 
-  public boolean get_bool_x() { return x; }
+  public boolean get_bool_x() {
+    return x;
+  }
 }

@@ -1,27 +1,24 @@
-class ShadowField{
+class ShadowField {
 
-    public static void main(String[] args) { 
-        A a;
-        a = new A();
-        a = a.foo();
-        System.out.println(a.get());
-    }
-
+  public static void main(String[] args) {
+    A a;
+    a = new A();
+    a = a.foo();
+    System.out.println(a.get());
+  }
 }
-
 
 class A {
 
-    int x;
+  int x;
 
-    public A foo(){
-        A x;
-        x = new A();
-        return x;
-    }
+  public A foo() {
+    A x;
+    x = new A();
+    return x;
+  }
 
-    public int get(){
-        return x;
-    }
-
+  public int get() {
+    return x;
+  }
 }

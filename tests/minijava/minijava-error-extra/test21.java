@@ -1,19 +1,19 @@
-class test21{
-    public static void main(String[] a){
-	System.out.println(new Test().start());
-    }
+class test21 {
+  public static void main(String[] a) {
+    System.out.println(new Test().start());
+  }
 }
 
-class Test{
+class Test {
 
-    public int start(){
+  public int start() {
 
-	int[] op;
+    int[] op;
 
-	op = new int[10];
+    op = new int[10];
 
-	op[true] = 20;		// TE
+    op[true] = 20; // TE
 
-	return 0;
-    }
+    return 0;
+  }
 }

@@ -69,39 +69,67 @@ class Receiver {
     return true;
   }
 
-  public A alloc_B_for_A() { return new B(); }
+  public A alloc_B_for_A() {
+    return new B();
+  }
 
-  public A alloc_C_for_A() { return new C(); }
+  public A alloc_C_for_A() {
+    return new C();
+  }
 
-  public A alloc_D_for_A() { return new D(); }
+  public A alloc_D_for_A() {
+    return new D();
+  }
 
-  public B alloc_D_for_B() { return new D(); }
+  public B alloc_D_for_B() {
+    return new D();
+  }
 }
 
 class A {
-  public int foo() { return 1; }
+  public int foo() {
+    return 1;
+  }
 
-  public int bar() { return 2; }
+  public int bar() {
+    return 2;
+  }
 
-  public int test() { return 3; }
+  public int test() {
+    return 3;
+  }
 }
 
 class B extends A {
-  public int bar() { return 12; }
+  public int bar() {
+    return 12;
+  }
 
-  public int not_overriden() { return 14; }
+  public int not_overriden() {
+    return 14;
+  }
 
-  public int another() { return 15; }
+  public int another() {
+    return 15;
+  }
 }
 
 class C extends A {
-  public int bar() { return 22; }
+  public int bar() {
+    return 22;
+  }
 }
 
 class D extends B {
-  public int bar() { return 32; }
+  public int bar() {
+    return 32;
+  }
 
-  public int another() { return 35; }
+  public int another() {
+    return 35;
+  }
 
-  public int stef() { return 36; }
+  public int stef() {
+    return 36;
+  }
 }

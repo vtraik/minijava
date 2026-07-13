@@ -1,23 +1,23 @@
-class test06{
-    public static void main(String[] a){
-	System.out.println(new Operator().compute());
-    }
+class test06 {
+  public static void main(String[] a) {
+    System.out.println(new Operator().compute());
+  }
 }
 
-class Operator{
-    
-    boolean op1bool;
-    boolean op2bool;
-    int op1int;
-    int op2int;
-    boolean result;
+class Operator {
 
-    public int compute(){
+  boolean op1bool;
+  boolean op2bool;
+  int op1int;
+  int op2int;
+  boolean result;
 
-	op1bool = true;
-	op2bool = false;
-	result = op1bool && op2bool;
+  public int compute() {
 
-	return 0;
-    }
+    op1bool = true;
+    op2bool = false;
+    result = op1bool && op2bool;
+
+    return 0;
+  }
 }

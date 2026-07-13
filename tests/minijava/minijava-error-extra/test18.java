@@ -1,18 +1,18 @@
-class test18{
-    public static void main(String[] a){
-        System.out.println(new Test().start());
-    }
+class test18 {
+  public static void main(String[] a) {
+    System.out.println(new Test().start());
+  }
 }
 
-class Test{
-	
-    public int start(){
+class Test {
 
-        int op;
-        int result;
+  public int start() {
 
-        result = op[10];	// TE
+    int op;
+    int result;
 
-        return 0;
-    }
+    result = op[10]; // TE
+
+    return 0;
+  }
 }

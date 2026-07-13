@@ -1,14 +1,11 @@
 class NoMethod {
 
-    public static void main(String[] args) {
-        A a;
-        a = new A ();
+  public static void main(String[] args) {
+    A a;
+    a = new A();
 
-        a = a.foo();
-    }
-
+    a = a.foo();
+  }
 }
 
-class A {
-
-}
+class A {}

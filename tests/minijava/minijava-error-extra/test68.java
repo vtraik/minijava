@@ -1,35 +1,35 @@
-class test68{
-    public static void main(String[] a){
-        System.out.println(new Test().start());
-    }
+class test68 {
+  public static void main(String[] a) {
+    System.out.println(new Test().start());
+  }
 }
 
 class Test2 {
 
-    public Test2 start(){
+  public Test2 start() {
 
-        Test2 test22;
-	
-        return test22;
-    }
+    Test2 test22;
+
+    return test22;
+  }
 }
 
 class Test {
 
-    Test test;
-    int i;
+  Test test;
+  int i;
 
-    public int start(){
-	
-        test = test.next();
+  public int start() {
 
-        return 0;
-    }
+    test = test.next();
 
-    public Test next() {
+    return 0;
+  }
 
-        Test2 test21;
+  public Test next() {
 
-        return test21.start();	// TE
-    }
+    Test2 test21;
+
+    return test21.start(); // TE
+  }
 }

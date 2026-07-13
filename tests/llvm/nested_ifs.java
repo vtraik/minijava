@@ -26,8 +26,7 @@ class Main {
     } else {
       System.out.println(0);
     }
-    flag = (((true && true) && ((!(false)) && (!(false)))) &&
-            (100 < 1000)); // true
+    flag = (((true && true) && ((!(false)) && (!(false)))) && (100 < 1000)); // true
     if (((true && flag) && ((!(false)) && (!(false))))) {
       if (((true && flag) && ((!(false)) && (!(false))))) {
         if (((true && flag) && ((!(false)) && (!(false))))) {

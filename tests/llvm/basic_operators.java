@@ -10,9 +10,6 @@ class Main {
     System.out.println(((((1 * ((new A()).getData())) * 3) - i) + 20));
   }
 }
-
 class A {
-  public int getData() {
-    return 100;
-  }
+  public int getData() { return 100; }
 }

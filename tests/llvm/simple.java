@@ -1,9 +1,9 @@
 class Simple {
-  public static void main(String[] a) {
-    int x;
+	public static void main(String[] a) {
+	    int x;
 
-    x = 10;
+        x = 10;
 
-    System.out.println(x);
-  }
+	    System.out.println(x);
+	}
 }

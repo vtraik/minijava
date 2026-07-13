@@ -1,17 +1,17 @@
-class test62 {
-  public static void main(String[] a) {
-    System.out.println(new Test().start());
-  }
+class test62{
+    public static void main(String[] a){
+	System.out.println(new Test().start());
+    }
 }
 
-class Test {
+class Test{
 
-  Test test;
+    Test test;
+	
+    public int start(){
 
-  public int start() {
+	test = this;
 
-    test = this;
-
-    return 0;
-  }
+	return 0;
+    }
 }

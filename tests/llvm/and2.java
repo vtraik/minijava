@@ -22,9 +22,7 @@ class Alsdfjasdjfl {
 }
 
 class A {
-  public boolean foo(boolean a, boolean b, boolean c) {
-    return (a && b) && c;
-  }
+  public boolean foo(boolean a, boolean b, boolean c) { return (a && b) && c; }
 
   public boolean bar(boolean a, boolean b) {
     return (a && (this.foo(a, b, true))) && b;
@@ -41,9 +39,7 @@ class A {
 }
 
 class B {
-  public boolean foo(int a) {
-    return !(3 < (a + 2)) && !false;
-  }
+  public boolean foo(int a) { return !(3 < (a + 2)) && !false; }
 
   public boolean t(int a, int b, boolean c, boolean d) {
     return (!(a < b)) && (c && d);

@@ -1,14 +1,15 @@
-class Example {
-  public static void main(String[] args) {
-    A a;
-  }
+class Example{
+    public static void main(String[] args){
+        A a;
+
+    }
 }
 
-class A {
-  int i;
-  int j;
+class A{
+    int i;
+    int j;
 
-  public B func() {
-    return this.func();
-  }
+    public B func(){
+        return this.func();
+    }
 }

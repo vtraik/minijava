@@ -3,108 +3,108 @@ package symboltable;
 import java.util.*;
 
 public class MethodInfo {
-  private Symbol retId; // return_type + identifier
-  private String mangName;
-  private boolean isOverridden;
-  private int offset;
-  List<Symbol> params = new ArrayList<Symbol>();
-  Map<String, Symbol> localVars = new HashMap<String, Symbol>();
+    private Symbol retId; // return_type + identifier
+    private String mangName;
+    private boolean isOverridden;
+    private int offset;
+    List<Symbol> params = new ArrayList<Symbol>();
+    Map<String, Symbol> localVars = new HashMap<String, Symbol>();
 
-  public MethodInfo(Symbol retId, String mangName, boolean isOverridden) {
-    this.retId = retId;
-    this.mangName = mangName;
-    this.isOverridden = isOverridden;
-    this.offset = -1;
-  }
-
-  public MethodInfo(Symbol retId) {
-    this.retId = retId;
-    this.mangName = "";
-    this.isOverridden = false;
-    this.offset = -1;
-  }
-
-  public Symbol getRetId() {
-    return retId;
-  }
-
-  public boolean getOverridden() {
-    return isOverridden;
-  }
-
-  public Symbol getLocalVar(String name) {
-    return localVars.containsKey(name) ? localVars.get(name) : null;
-  }
-
-  public Symbol resolveBinding(String name) {
-    if (localVars.containsKey(name)) {
-      return localVars.get(name);
+    public MethodInfo(Symbol retId, String mangName, boolean isOverridden){
+        this.retId = retId;
+        this.mangName = mangName;
+        this.isOverridden = isOverridden;
+        this.offset = -1;
     }
-    int indx;
-    return (indx = params.indexOf(new Symbol(name, null))) == -1 ? null : params.get(indx);
-  }
 
-  public int getNumParams() {
-    return params.size();
-  }
+    public MethodInfo(Symbol retId){
+        this.retId = retId;
+        this.mangName = "";
+        this.isOverridden = false;
+        this.offset = -1;
+    }
 
-  public List<Symbol> getParams() {
-    return params;
-  }
+    public Symbol getRetId(){
+        return retId;
+    }
 
-  public Map<String, Symbol> getLocalVars() {
-    return localVars;
-  }
+    public boolean getOverridden(){
+        return isOverridden;
+    }
 
-  public int getOffset() {
-    return offset;
-  }
+    public Symbol getLocalVar(String name){
+        return localVars.containsKey(name) ? localVars.get(name) : null;
+    }
 
-  public String getMangName() {
-    return mangName;
-  }
+    public Symbol resolveBinding(String name){
+        if(localVars.containsKey(name)){
+            return localVars.get(name);
+        }
+        int indx;
+        return (indx = params.indexOf(new Symbol(name, null))) == -1 ? null : params.get(indx);
+    }
 
-  public void setOffset(int offset) {
-    this.offset = offset;
-  }
+    public int getNumParams(){
+        return params.size();
+    }
 
-  public void setOverridden(boolean isOverridden) {
-    this.isOverridden = isOverridden;
-  }
+    public List<Symbol> getParams(){
+        return params;
+    }
 
-  public void setMangName(String mangName) {
-    this.mangName = mangName;
-  }
+    public Map<String, Symbol> getLocalVars(){
+        return localVars;
+    }
 
-  public void addParam(Symbol param) throws Exception {
-    if (params.contains(param))
-      throw new Exception(
-          String.format(
-              "Duplicate parameter %s in method -> %s", param.getName(), retId.getName()));
-    params.add(param);
-  }
+    public int getOffset(){
+        return offset;
+    }
 
-  public void addLocalVar(Symbol var) throws Exception {
-    if (localVars.containsKey(var.getName()) || params.contains(var))
-      throw new Exception(
-          String.format(
-              "Duplicate symbol %s in method scope -> %s", var.getName(), retId.getName()));
-    localVars.put(var.getName(), var);
-  }
+    public String getMangName(){
+        return mangName;
+    }
 
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj) return true;
+    public void setOffset(int offset){
+        this.offset = offset;
+    }
 
-    if (obj == null) return false;
+    public void setOverridden(boolean isOverridden){
+        this.isOverridden = isOverridden;
+    }
 
-    if (getClass() != obj.getClass()) return false;
+    public void setMangName(String mangName){
+        this.mangName = mangName;
+    }
 
-    return mangName.equals(((MethodInfo) obj).mangName);
-  }
+    public void addParam(Symbol param) throws Exception {
+        if(params.contains(param))
+            throw new Exception(String.format("Duplicate parameter %s in method -> %s", param.getName(), retId.getName()));
+        params.add(param);
+    }
 
-  @Override
-  public int hashCode() {
-    return mangName.hashCode();
-  }
+    public void addLocalVar(Symbol var) throws Exception {
+        if(localVars.containsKey(var.getName()) || params.contains(var))
+            throw new Exception(String.format("Duplicate symbol %s in method scope -> %s", var.getName(), retId.getName()));
+        localVars.put(var.getName(), var);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+
+        if (obj == null)
+            return false;
+
+        if (getClass() != obj.getClass())
+            return false;
+
+        return mangName.equals(((MethodInfo) obj).mangName);
+    }
+
+    @Override
+    public int hashCode() {
+        return mangName.hashCode();
+    }
+
 }

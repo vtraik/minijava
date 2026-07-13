@@ -495,8 +495,15 @@ class RefVisitor extends GJDepthFirst<String, String>{
     //       | Identifier()
     @Override
     public String visit(Type n, String argu) throws Exception {
+        //   .which:
+        //       0 = ArrayType()
+        //       1 = BooleanType()
+        //       2 = IntegerType()
+        //       3 = Identifier()
         // decl id (Type Identifier) has different action from ref id (Identifier)
-        if(n.f0.which == 3) // in declaration => should return just the id token and not search for var's (as my Identifier visitor does)
+        // in declaration => should return just the id token and not search for var's
+        // (as my Identifier method does)
+        if(n.f0.which == 3)
             return ((Identifier) n.f0.choice).f0.tokenImage;
         else
            return super.visit(n, argu);

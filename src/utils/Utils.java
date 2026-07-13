@@ -32,7 +32,11 @@ public class Utils {
         if(type1.equals(type2) && type1 != null)
             return true;
 
-        ClassInfo superClass = symbt.getClass(type1).getSuper();
+        ClassInfo classI = symbt.getClass(type1);
+        if (classI == null) // type1 == prim type && type2 not
+            return false;
+
+        ClassInfo superClass = classI.getSuper();
         if(superClass == null)
             return false;
         else

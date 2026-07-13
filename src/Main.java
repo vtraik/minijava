@@ -42,9 +42,6 @@ public class Main {
                 // fourth pass: generate llvm ir
                 root.accept(new CodeGenVisitor(symbt, vtable, fwriter), null);
 
-                // print offsets -> 1: + param types, 0: default
-                // symbt.printOffsets(1);
-
                 System.out.println();
             }
             catch(Exception ex) {

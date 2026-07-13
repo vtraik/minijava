@@ -6,14 +6,13 @@ import vtable.*;
 import symboltable.*;
 import static utils.Utils.*;
 
-// might put String.format in emits to be more readable ?
-
 class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     private VTable vtable;
     private SymbolTable symbt;
     private FileWriter fw;
 
-    private int methNumber = 0; // order of symbt table pass (used in ref vis too)
+    // the i-th method visited in order of Decl pass (which is the order of every pass).
+    private int methNumber = 0;
     private int regId = 0;
     private int labelId = 0;
     // for phi. Only updated in expr nodes
@@ -75,7 +74,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
             for (Info meth : clMeths) {
                 String defClass = meth.getDefClass();
-                // ptr @defClass.foo_(paramtypes)
+                // ptr @"defClass.foo_(paramtypes)"
                 emit("ptr @\"" + defClass + "." + meth.getMethod().getMangName() + "\"");
 
                 methNum--;
@@ -129,8 +128,8 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     public Symbol visit(MainClass n, String argu) throws Exception {
         String classname = n.f1.f0.tokenImage;
 
-        emitVtableDecl(); // vtable declarations
-        emitHelpers();    // boilerplate
+        emitVtableDecl(); // generate code: vtable declarations
+        emitHelpers();    // generate code: boilerplate
 
         emit("define i32 @main() {\n");
 
@@ -150,7 +149,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     @Override
     public Symbol visit(ClassDeclaration n, String argu) throws Exception {
         String className = n.f1.f0.tokenImage;
-        n.f4.accept(this, className + "|null");
+        n.f4.accept(this, className + "|null"); // generate code: method definitions
 
         return null;
     }
@@ -166,7 +165,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     @Override
     public Symbol visit(ClassExtendsDeclaration n, String argu) throws Exception {
         String className = n.f1.f0.tokenImage;
-        n.f6.accept(this, className + "|null");
+        n.f6.accept(this, className + "|null"); // generate code: method definitions
 
         return null;
     }
@@ -232,7 +231,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         n.f7.accept(this, className + "|" + mangName); // var decl
         n.f8.accept(this, className + "|" + mangName); // statements
 
-        Symbol retReg = n.f10.accept(this, className + "|" + mangName);
+        Symbol retReg = n.f10.accept(this, className + "|" + mangName); // generate code: expr
 
 
         String pref = getFirstEl(retReg.getType()).endsWith("Lit") ? "" : "%";
@@ -245,10 +244,11 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
     @Override
     public Symbol visit(Type n, String argu) throws Exception {
-        // .which = 0 -> ArrayType
-        //        = 1 -> BooleanType
-        //        = 2 -> IntegerType
-        //        = 3 -> Identifier
+        // .which:
+        //        0 = ArrayType
+        //        1 = BooleanType
+        //        2 = IntegerType
+        //        3 = Identifier
         if (n.f0.which == 3)
             return new Symbol(null, "ptr");
         else
@@ -308,7 +308,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         // save current state
         int lvalueOffs = n.f0.getFieldOffs();
 
-        Symbol rvalue = n.f2.accept(this, argu); // expression code
+        Symbol rvalue = n.f2.accept(this, argu); // generate code: expr
 
         String pref = getFirstEl(rvalue.getType()).endsWith("Lit") ? "" : "%";
 
@@ -344,8 +344,8 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         // capture current state
         int lvalueOffs = n.f0.getFieldOffs();
 
-        Symbol idx = n.f2.accept(this, argu); // expr code
-        Symbol expr = n.f5.accept(this, argu); // expr code
+        Symbol idx = n.f2.accept(this, argu); // generate code: idx expr
+        Symbol expr = n.f5.accept(this, argu); // generate code: rvalue expr
 
         String load;
 
@@ -390,7 +390,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f6 -> Statement()
     @Override
     public Symbol visit(IfStatement n, String argu) throws Exception {
-        Symbol expr = n.f2.accept(this, argu); // expr code
+        Symbol expr = n.f2.accept(this, argu); // generate code: if expr
 
         String iflabel = newLabel();
         String elselabel = newLabel();
@@ -402,12 +402,12 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
             );
 
         emit(elselabel + ":\n");
-        n.f6.accept(this, argu); // else statement code
+        n.f6.accept(this, argu); // generate code: else statement
 
         emit("\tbr label %" + exit + "\n\n");
 
         emit(iflabel + ":\n");
-        n.f4.accept(this, argu); // if statement code
+        n.f4.accept(this, argu); // generate code: if statement
 
         emit("\tbr label %" + exit + "\n\n"
              + exit + ":\n");
@@ -430,7 +430,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         emit("\tbr label %" + entry + "\n"
              + entry + ":\n");
 
-        Symbol expr = n.f2.accept(this, argu);
+        Symbol expr = n.f2.accept(this, argu); // generate code: while expr
 
         String pref = getFirstEl(expr.getType()).equals("bLit") ? "" : "%";
 
@@ -441,7 +441,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
         emit(body + ":\n");
 
-        n.f4.accept(this, argu); // statement code
+        n.f4.accept(this, argu); // generate code: while statement
 
         emit("\tbr label %" + entry + "\n\n");
         emit(exit + ":\n");
@@ -456,7 +456,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f4 -> ";"
     @Override
     public Symbol visit(PrintStatement n, String argu) throws Exception {
-        Symbol expr = n.f2.accept(this, argu); // expr code
+        Symbol expr = n.f2.accept(this, argu); // generate code: print's expr
 
         String pref = getFirstEl(expr.getType()).equals("iLit") ? "" : "%";
         emit("\tcall void @print_int(i32 " + pref + expr.getName() + ")\n\n");
@@ -469,7 +469,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f2 -> Clause()
     @Override
     public Symbol visit(AndExpression n, String argu) throws Exception {
-        Symbol lclause = n.f0.accept(this, argu); // left clause code
+        Symbol lclause = n.f0.accept(this, argu); // generate code: left clause
 
         String label1 = newLabel();
         String label2 = newLabel();
@@ -483,7 +483,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
 
         prevBasicBlock = label1;
 
-        Symbol rclause = n.f2.accept(this, argu); // right clause code
+        Symbol rclause = n.f2.accept(this, argu); // generate code: right clause
 
         String pref2 = getFirstEl(rclause.getType()).equals("bLit") ? "" : "%";
 
@@ -506,8 +506,8 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f2 -> PrimaryExpression()
     @Override
     public Symbol visit(CompareExpression n, String argu) throws Exception {
-        Symbol lexpr = n.f0.accept(this, argu);
-        Symbol rexpr = n.f2.accept(this, argu);
+        Symbol lexpr = n.f0.accept(this, argu); // generate code: prim expr
+        Symbol rexpr = n.f2.accept(this, argu); // generate code: prim expr
 
         String r = newReg();
 
@@ -526,8 +526,9 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f2 -> PrimaryExpression()
     @Override
     public Symbol visit(PlusExpression n, String argu) throws Exception {
-        Symbol lexpr = n.f0.accept(this, argu);
-        Symbol rexpr = n.f2.accept(this, argu);
+        Symbol lexpr = n.f0.accept(this, argu); // generate code: prim expr
+        Symbol rexpr = n.f2.accept(this, argu); // generate code: prim expr
+
 
         String r = newReg();
 
@@ -544,8 +545,8 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f2 -> PrimaryExpression()
     @Override
     public Symbol visit(MinusExpression n, String argu) throws Exception {
-        Symbol lexpr = n.f0.accept(this, argu);
-        Symbol rexpr = n.f2.accept(this, argu);
+        Symbol lexpr = n.f0.accept(this, argu); // generate code: prim expr
+        Symbol rexpr = n.f2.accept(this, argu); // generate code: prim expr
 
         String r = newReg();
 
@@ -563,8 +564,8 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f2 -> PrimaryExpression()
     @Override
     public Symbol visit(TimesExpression n, String argu) throws Exception {
-        Symbol lexpr = n.f0.accept(this, argu);
-        Symbol rexpr = n.f2.accept(this, argu);
+        Symbol lexpr = n.f0.accept(this, argu); // generate code: prim expr
+        Symbol rexpr = n.f2.accept(this, argu); // generate code: prim expr
 
         String r = newReg();
 
@@ -583,8 +584,8 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f3 -> "]"
     @Override
     public Symbol visit(ArrayLookup n, String argu) throws Exception {
-        Symbol arrBase = n.f0.accept(this, argu);
-        Symbol expr = n.f2.accept(this, argu);
+        Symbol arrBase = n.f0.accept(this, argu); // generate code: arr prim expr
+        Symbol expr = n.f2.accept(this, argu); // generate code: idx prim expr
         String arrSize = newReg();
         emit("\t%" + arrSize + " = load i32, ptr %" + arrBase.getName() + "\n");
         String thenlabel = emitCheckOOB(expr, arrSize);
@@ -610,7 +611,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f2 -> "length"
     @Override
     public Symbol visit(ArrayLength n, String argu) throws Exception {
-        Symbol expr = n.f0.accept(this, argu); // expr code
+        Symbol expr = n.f0.accept(this, argu); // generate code: arr prim expr
 
         String r = newReg();
         // first 4 bytes = length of array
@@ -627,9 +628,9 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f5 -> ")"
     @Override
     public Symbol visit(MessageSend n, String argu) throws Exception {
-        Symbol obj = n.f0.accept(this, argu); // expression code
+        Symbol obj = n.f0.accept(this, argu); // generate code: meth prim expr
 
-        // expression list code
+        // generate code: expr list
         // Symbol(num or %r<num>, %r<num>.., type1_type2_..)
         Symbol argsTypes = n.f4.present() ? n.f4.accept(this, argu) : new Symbol("", "");
         // eg: ["%r1", "%r2", 3, 10, "%r9"]
@@ -673,11 +674,11 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f1 -> ExpressionTail()
     @Override
     public Symbol visit(ExpressionList n, String argu) throws Exception {
-        Symbol expr = n.f0.accept(this, argu);
+        Symbol expr = n.f0.accept(this, argu); // generate code: expr
         Symbol exprtail = null;
 
         if (n.f1 != null)
-            exprtail = n.f1.accept(this, argu);
+            exprtail = n.f1.accept(this, argu); // generate code: expr tail
 
         String pref = getFirstEl(expr.getType()).endsWith("Lit") ? "" : "%";
         String r = pref + expr.getName() + (exprtail == null ? "" : exprtail.getName());
@@ -708,7 +709,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f1 -> Expression()
     @Override
     public Symbol visit(ExpressionTerm n, String argu) throws Exception {
-        return n.f1.accept(this, argu);
+        return n.f1.accept(this, argu); // generate code: expr
     }
 
     @Override
@@ -738,7 +739,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f4 -> "]"
     @Override
     public Symbol visit(ArrayAllocationExpression n, String argu) throws Exception {
-        Symbol expr = n.f3.accept(this, argu); // expr code
+        Symbol expr = n.f3.accept(this, argu); // generate code: size expr
         String arrSize = newReg();
         String pref = (getFirstEl(expr.getType()).equals("iLit") ? "" : "%");
 
@@ -785,7 +786,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f1 -> Clause()
     @Override
     public Symbol visit(NotExpression n, String argu) throws Exception {
-        Symbol clause = n.f1.accept(this, argu);
+        Symbol clause = n.f1.accept(this, argu); // generate code: clause
 
         // xor with 1 = ! Clause
         String r = newReg();
@@ -801,6 +802,6 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
     // f2 -> ")"
     @Override
     public Symbol visit(BracketExpression n, String argu) throws Exception {
-        return n.f1.accept(this, argu);
+        return n.f1.accept(this, argu); // generate code: expr
     }
 }

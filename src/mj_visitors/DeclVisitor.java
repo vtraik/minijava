@@ -51,6 +51,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
     private void checkOverloadingSuperClass(List<MethodInfo> meth, String className, String methName) throws Exception {
         ClassInfo superClass;
         String currSuperName = className;
+
         while((superClass = symbt.getSuper(currSuperName)) != null){
             currSuperName = superClass.getName();
 
@@ -85,7 +86,7 @@ class DeclVisitor extends GJDepthFirst<String, String>{
                 // same class overloading
                 checkOverloading(sameClass, cl.getKey());
 
-                // super class overloading/overriding
+                // super class overloading
                 checkOverloadingSuperClass(sameClass, cl.getKey(), meth.getKey());
             }
         }
@@ -213,11 +214,10 @@ class DeclVisitor extends GJDepthFirst<String, String>{
         Symbol newVar = new Symbol(var, type);
 
         updateUndefTypes(type);
-        if(methName.equals("null")){ // class scope => field
+        if(methName.equals("null")) // class scope => field
             symbt.getClass(className).addField(newVar);
-        }else{                  // method scope => local var
+        else                        // method scope => local var
             symbt.getClass(className).getMethodMang(methName).addLocalVar(newVar);
-        }
 
         return null;
     }

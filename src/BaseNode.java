@@ -1,5 +1,7 @@
 package basenode;
 
+// keeps resolved MethodInfo and var symbols in AST (also field offs) to prevent
+// searching for them again in codegen phase
 public abstract class BaseNode {
     private Object resolvedPtr;
     private int fieldOffs = 0;
@@ -12,7 +14,6 @@ public abstract class BaseNode {
         this.resolvedPtr = resolvedPtr;
     }
 
-    // for Vars -- needed in codegen
     public int getFieldOffs() {
         return this.fieldOffs;
     }

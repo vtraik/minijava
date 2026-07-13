@@ -1,6 +1,7 @@
 # minijava compiler  
 - Tools : JFlex, JavaCUP and JTB.
 - Dependencies : >= clang with LLVM IR 15 (opaque ptrs used)
+- Tests from: [minijava-testsuite](https://github.com/baziotis/minijava-testsuite). And some new ones.
 
 ## Compilation, Run, Cleanup
 ```bash
@@ -34,4 +35,4 @@ Four visitors are implemented that do:
 > the children nodes as the visitors walk the AST.
 > 2. LLVM-IR virtual registers follow the naming convention : `%r<number>` where `<number>` is an incrementing integer.
 > 3. BaseNode is used to store in the AST the resolved MethodInfo references and variable field offsets so it is not needed to
-> search my data structures again in code-gen phase. 
+> search my data structures again in code-gen phase.

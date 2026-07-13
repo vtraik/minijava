@@ -25,15 +25,6 @@ MiniJava supports:
 * Methods
 * Single inheritance
 
-MiniJava does **not** support:
-
-* Interfaces
-* Inner classes
-* Constructors
-* Destructors
-* Static methods
-* Static fields
-
 The `new` operator invokes an implicit default constructor.
 
 ---

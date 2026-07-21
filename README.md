@@ -1,4 +1,4 @@
-# minijava compiler  
+# minijava
 - Tools : JFlex, JavaCUP and JTB.
 - Dependencies : >= clang with LLVM IR 15 (opaque ptrs used)
 - Tests from: [minijava-testsuite](https://github.com/baziotis/minijava-testsuite). And some new ones.

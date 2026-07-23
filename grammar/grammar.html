@@ -27,7 +27,7 @@
             padding: 24px;
             box-shadow: 0 6px 16px rgba(0,0,0,0.2);
             
-            /* Modern Grid Layout for flawless alignment */
+          
             display: grid;
             grid-template-columns: minmax(auto, max-content) min-content 1fr;
             gap: 4px 16px;
@@ -35,9 +35,9 @@
             font-size: 14px;
         }
         
-        /* Grid Column Rules */
+        
         .grammar-row {
-            display: content; /* Allows children to participate in the parent grid */
+            display: content;
         }
         .lhs {
             grid-column: 1;
@@ -54,7 +54,7 @@
             word-break: break-word;
         }
         
-        /* Highlighting Styles */
+       
         .nt {
             color: #a3be8c;
             font-weight: 600;
@@ -188,7 +188,7 @@ BracketExpression ::= "(" Expression ")"</div>
             const container = document.getElementById("grammar");
             const rawText = container.innerHTML;
 
-            // 1. Gather all Non-Terminals for regex targeting later
+          
             const definitionRegex = /^([a-zA-Z_]\w*)\s*::=/gm;
             const nonTerminals = new Set();
             let match;
@@ -197,14 +197,14 @@ BracketExpression ::= "(" Expression ")"</div>
             }
             const sortedNTs = Array.from(nonTerminals).sort((a, b) => b.length - a.length);
 
-            // 2. Split text into individual logical rules/lines
+         
             const rawLines = rawText.split('\n');
             let finalHTML = '';
 
             rawLines.forEach(line => {
                 const trimmed = line.trim();
                 if (!trimmed) {
-                    // Maintain spacing between rule blocks
+                   
                     finalHTML += '<div style="grid-column: span 3; height: 1em;"></div>';
                     return;
                 }
@@ -217,35 +217,35 @@ BracketExpression ::= "(" Expression ")"</div>
                     op = '::=';
                     rhs = parts[1].trim();
                 } else {
-                    // Line extension (e.g., lines starting with '|')
+                  
                     lhs = '';
                     op = '';
                     rhs = trimmed;
                 }
 
-                // Apply highlighting tokens to the components
+           
                 if (lhs) {
                     lhs = `<span class="nt">${lhs}</span>`;
                 }
                 if (rhs) {
-                    // Temporarily wrap literal string quotes safely
+                   
                     const quotes = [];
                     rhs = rhs.replace(/"[^"\\]*(?:\\.[^"\\]*)*"/g, (m) => {
                         quotes.push(`<span class="str">${m}</span>`);
                         return `___QUOTE_PLACEHOLDER_${quotes.length - 1}___`;
                     });
 
-                    // Highlight Non-Terminals
+                   
                     sortedNTs.forEach(nt => {
                         const regex = new RegExp(`\\b${nt}\\b`, 'g');
                         rhs = rhs.replace(regex, `<span class="nt">${nt}</span>`);
                     });
 
-                    // Restore original literal strings
+                 
                     rhs = rhs.replace(/___QUOTE_PLACEHOLDER_(\d+)___/g, (_, id) => quotes[id]);
                 }
 
-                // Append the structurally organized row
+               
                 finalHTML += `
                     <div class="lhs">${lhs}</div>
                     <div class="op">${op}</div>

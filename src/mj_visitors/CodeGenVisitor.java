@@ -276,13 +276,13 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         Symbol var = (Symbol) n.getResolvedPtr();
         String type = llvmType(var.getType());
 
-        // if field offs >= 8 (in semantic check it was a field => isField == true)
+        // if field offs >= 8 (in semantic check it was a field)
         int fieldOffs = n.getFieldOffs();
         if(fieldOffs >= 8) {
             String tempPtr = newReg();
             String tempLoad = newReg();
 
-            // get ptr to field, cast to right type and load field
+            // get ptr to field, load field
             emit("\t%" + tempPtr + " = getelementptr i8, ptr %this, i32 " + fieldOffs + "\n"
                 + "\t%" + tempLoad + " = load " + type + ", ptr %" + tempPtr + "\n\n"
                 );
@@ -315,7 +315,7 @@ class CodeGenVisitor extends GJDepthFirst<Symbol, String> {
         if (lvalueOffs >= 8) {
             String tempPtr = newReg();
 
-            // get field'pref ptr, cast to its type, store expr res to it
+            // get field'pref ptr, store expr res to it
             emit("\t%" + tempPtr + " = getelementptr i8, ptr %this, i32 " + lvalueOffs + "\n"
                 + "\tstore " + type + " " + pref
                 + rvalue.getName() + ", ptr %" + tempPtr + "\n\n"

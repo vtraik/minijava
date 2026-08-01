@@ -25,7 +25,7 @@ make clean
 
 AST is produced by JFlex, JavaCUP and JTB.
 Four visitors are implemented that do:
-- `DeclVisitor`: Populates symbol table with declerations and check for overriding/overloading errors.
+- `DeclVisitor`: Populates symbol table with declerations and checks for overriding/overloading errors.
 - `RefVisitor`: Type checks the program.
 - `VTableVisitor`: Populates the vtable.
 - `CodeGenVisitor`: Generates llvm ir.

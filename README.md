@@ -16,8 +16,8 @@ make clean
 ```
 ## Documentation
 
-- 🌍 [Language Specification](langspec.md)
-- 📖 [Grammar](grammar)
+- [Language Specification](langspec.md)
+- [Grammar](grammar)
 
 ## Implementation
 

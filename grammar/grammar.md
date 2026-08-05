@@ -1,4 +1,4 @@
-```bnf
+```ebnf
 Goal ::= MainClass ( TypeDeclaration )* <EOF>
 
 MainClass ::= "class" Identifier "{" "public" "static" "void" "main" "(" "String" "[" "]" Identifier ")" "{" ( VarDeclaration )* ( Statement )* "}" "}"
